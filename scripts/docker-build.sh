@@ -6,6 +6,9 @@ TARGET="${1:-all}"
 
 python3 tools/gen_params.py
 python3 tools/check_config.py
+# Help lines that run off the 128px screen, or use a character the device font
+# has no glyph for, fail silently on the device -- no wrap, no marker, no log.
+python3 tools/check_help.py
 
 # ---- Native DSP tests: compile and RUN in-container before cross-compiling.
 # A red test here fails the whole build.

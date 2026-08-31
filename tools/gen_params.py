@@ -15,7 +15,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.0.13"
+VERSION = "1.0.14"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
