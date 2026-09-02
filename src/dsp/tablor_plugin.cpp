@@ -655,34 +655,6 @@ static void apply_state_blob(tablor_instance *inst, const char *val)
 /* picking a new target back-syncs the pot so nothing jumps.           */
 /* ------------------------------------------------------------------ */
 
-static int user_macro_target(tablor_instance *inst, int i)
-{
-    int opt = (int) inst->params()[tb_user_sels[i]];
-    if (opt < 0 || opt >= (int) (sizeof tb_user_target_map / sizeof *tb_user_target_map))
-        return -1;
-    return tb_user_target_map[opt];
-}
-
-static void user_macro_apply(tablor_instance *inst, int i)
-{
-    int t = user_macro_target(inst, i);
-    if (t < 0) return;
-    const tb_param_t *p = &tb_params[t];
-    float v01 = inst->params()[tb_user_pots[i]] / 127.0f;
-    float span = p->max - p->min;
-    inst->params()[t] = p->min + (float) (int) (v01 * span + 0.5f);
-}
-
-static void user_macro_backsync(tablor_instance *inst, int i)
-{
-    int t = user_macro_target(inst, i);
-    if (t < 0) return;
-    const tb_param_t *p = &tb_params[t];
-    float span = p->max - p->min;
-    float v01 = span > 0 ? (inst->params()[t] - p->min) / span : 0.0f;
-    inst->params()[tb_user_pots[i]] = (float) (int) (v01 * 127.0f + 0.5f);
-}
-
 /* ------------------------------------------------------------------ */
 /* set / get                                                           */
 /* ------------------------------------------------------------------ */
@@ -881,15 +853,6 @@ static void tb_set_param(void *instance, const char *key, const char *val)
     }
 
     inst->params()[idx] = clamp_param(p, v);
-
-    /* keep the engine's mod-slot cache in step (cheap: 32 reads) */
-    if (k[0] == 'm' && k[1] >= '1' && k[1] <= '8')
-
-    /* user macros */
-    for (int i = 0; i < TB_USER_MACROS; i++) {
-        if (idx == tb_user_pots[i]) { user_macro_apply(inst, i); break; }
-        if (idx == tb_user_sels[i]) { user_macro_backsync(inst, i); break; }
-    }
 }
 
 static int write_str(char *buf, int buf_len, const char *s)

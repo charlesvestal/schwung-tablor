@@ -10,7 +10,7 @@
  * section with a lighter title bar, real knobs with an amber value arc, and
  * the curve displays sitting inside the panel they belong to.
  *
- * The CONTROLS are ours — no FX row, no step sequencer, plus the macro bank
+ * The CONTROLS are ours — no FX row, no step sequencer
  * Tablor adds. Ranges, option names and page grouping all come from
  * ui_pages.json, the same file the hardware pages are generated from, so this
  * cannot drift from the device. */
@@ -108,15 +108,12 @@ canvas.disp{
   background:#0a0b0d; border:1px solid #23262c; border-radius:3px;
   display:block; width:100%; flex:none; min-width:0;
 }
-/* ---- macro rows ---- */
 .row{display:flex; align-items:center; gap:5px; margin-bottom:4px}
 .row .n{color:var(--dim); width:14px; flex:none; text-align:right}
 .row .pill{width:auto; flex:1 1 0; min-width:0; max-width:150px}
 .row .pill.sw{flex:0 0 46px; max-width:46px}
 .row .pill .lab{display:none}
 .arrow{color:var(--dim); flex:none}
-.macro{width:88px; flex:none; display:flex; flex-direction:column; align-items:center; gap:2px}
-.macro .pill{width:84px}
 .hint{color:var(--dim); font-size:10px; padding:2px 9px 8px}
 /* ---- spans ---- */
 .s2{grid-column:span 2}.s3{grid-column:span 3}.s4{grid-column:span 4}
@@ -585,14 +582,6 @@ function build() {
             ["vca_vel", "Vel"]], ak);
   var ar = el("div", "col", ab); ar.style.flex = "1"; ar.style.minWidth = "0";
   addCanvas(ar, drawAdsr("vca_a", "vca_d", "vca_s", "vca_r"), 104);
-
-  var ub = panel("s8", "Macros");
-  var uk = el("div", "knobs", el("div", "col", ub));
-  for (var j = 1; META["u" + j]; j++) {
-    var cell = el("div", "macro", uk);
-    control("u" + j, "U" + j, cell);
-    control("u" + j + "_target", null, cell);
-  }
 
   var gb = panel("s4", "Global");
   var gk = el("div", "knobs", el("div", "col", gb));

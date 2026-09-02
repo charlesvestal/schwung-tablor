@@ -10,14 +10,15 @@
         "",
         "2 wavetable oscs,",
         "sub, noise, multi-",
-        "mode filter, two",
-        "envelopes and",
-        "8 user macros.",
+        "mode filter and",
+        "two envelopes.",
         "",
-        "Modulation comes",
-        "from Schwung's own",
-        "slot LFOs: point",
-        "one at any Tablor",
+        "For modulation or",
+        "macros, use",
+        "Schwung's own slot",
+        "LFOs and knob",
+        "mapping: both",
+        "reach any Tablor",
         "knob from the slot",
         "settings.",
         "",
@@ -80,25 +81,7 @@
         " noise",
         "Env / Env+",
         "Global",
-        "User + U.Map:",
-        " 8 macros",
         "Presets: last page"
-      ]
-    },
-    {
-      "title": "User Macros",
-      "lines": [
-        "8 knobs you map",
-        "to anything.",
-        "",
-        "On U.MAP, pick a",
-        "target for each",
-        "macro. On USER,",
-        "play them.",
-        "",
-        "Macros save with",
-        "the patch and can",
-        "be automated."
       ]
     },
     {

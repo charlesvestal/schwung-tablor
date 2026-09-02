@@ -167,14 +167,15 @@ int main(int argc, char **argv)
     CHECK(n > 100, "chain_params returns %d bytes", n);
     CHECK(big[0] == '[' && big[n - 1] == ']', "chain_params looks like a JSON array");
     CHECK(strstr(big, "\"wt1_table\"") && strstr(big, "\"volume\"") &&
-          strstr(big, "\"u8_target\""), "chain_params contains first/mid/last keys");
+          strstr(big, "\"flt_freq\""), "chain_params contains first/mid/last keys");
     /* The two LFOs and the four mod slots were cut in 1.1.0: four pages of
      * clutter for modulation Schwung already provides through a slot LFO.
      * Asserted here because a stale generator would put them back silently. */
     CHECK(!strstr(big, "\"lfo1_shape\"") && !strstr(big, "\"lfo2_rate\"") &&
           !strstr(big, "\"m1_src\"") && !strstr(big, "\"m4_on\"") &&
+          !strstr(big, "\"u1\"") && !strstr(big, "\"u8_target\"") &&
           !strstr(big, "\"rt_wt1\"") && !strstr(big, "\"wt1_fine\""),
-          "the LFOs, the mod slots and the older trims are really gone");
+          "the LFOs, the mod slots, the macros and the older trims are really gone");
     CHECK(strstr(big, "%s") == nullptr, "no unfilled %%s slots leaked");
 
     /* ---- int param round-trip ---- */

@@ -9,7 +9,7 @@ else stays out of the way.
 
 ![Main page: both wavetables on knobs 1-2, position, level and tune](docs/img/move-main.png)
 
-10 pages, 65 controls, no menus inside menus. The graphics are Schwung's own
+8 pages, 49 controls, no menus inside menus. The graphics are Schwung's own
 — declared, not drawn by us — so the filter curve and both envelopes are the
 real values:
 
@@ -28,8 +28,6 @@ real values:
 - **Two envelopes** (amp + filter) with key and velocity tracking. For
   movement, point one of Schwung's own slot LFOs at any Tablor knob — that
   is what the host already does well, and it saves four pages of surface
-- **8 user macros** — map any knob to anything, on the device; assignments
-  save with the patch and can be automated
 - **8 voices** polyphonic, or mono with glide/legato
 - **8 factory presets** plus **unlimited user presets** — plain `.tblr` files
   in `UserLibrary/Tablor Presets/`, name-as-filename, copy/share them freely;
@@ -72,8 +70,7 @@ and still save with the patch; they simply have no cell on the hardware.
 
 Open `move.local:7700/remote-ui` and Tablor lays itself out the way the plugin
 it came from does: both oscillators across the top with their wavetable
-displays, then noise, sub, filter and the amp envelope, with macros and
-global below. Every control is live in both
+displays, then noise, sub, filter and the amp envelope, with global below. Every control is live in both
 directions — turn a knob here and the Move follows, turn one on the Move and
 this follows.
 

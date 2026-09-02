@@ -15,7 +15,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
@@ -217,12 +217,15 @@ def all_params():
                     seen.add(s["key"]); out.append(s)
     return out
 
-# ---------------------------------------------------------------- user macros
-# 8 assignable macros as REAL DSP params, so the User page exists in Movy AND
-# in ui_chain, assignments live inside patches, and a Movy LFO can drive a
-# macro. u{i} is a 0..127 pot; u{i}_target picks any parameter by name; the
-# DSP writes through (and back-syncs the pot when the target changes).
+# The 8 assignable macros were cut in 1.1.1, with the LFOs and the mod slots
+# before them: two more pages, and a 46-entry target list to scroll, for
+# indirection over knobs that are already one jog away. Schwung's own knob
+# mapping reaches any Tablor parameter from the slot settings and is where a
+# user looks for exactly this.
 BASE_PARAMS = all_params()
+NOT_TARGETS = {"preset", "preset_rnd"}
+
+PARAMS = all_params()
 NOT_TARGETS = {"preset", "preset_rnd"}
 USER_TARGETS = ["None"] + [p["full"] for p in BASE_PARAMS
                            if p["type"] != "file" and p["key"] not in NOT_TARGETS]
@@ -233,8 +236,6 @@ for i in range(1, 9):
     USER_SELS.append(enum(f"u{i}_target", f"TGT{i}", f"Macro {i} Target",
                           USER_TARGETS, 0, automatable=False))
 
-BANKS.append(("User", False, [row(*USER_POTS)]))
-BANKS.append(("UMap", True,  [row(*USER_SELS)]))
 
 PARAMS = all_params()
 
@@ -269,7 +270,6 @@ MOVY_PAGE_NAMES = {
     ("Filter", 0): "Filter",
     ("Env", 0): "Env", ("Env", 1): "Env+",
     ("Global", 0): "Global",
-    ("User", 0): "User",  ("UMap", 0): "U.Map",
 }
 
 movy_banks = []
@@ -364,8 +364,6 @@ PAGE_MAP = [  # (bank name, row index, page title). Section = bank name.
     ("Env",    0, "ENV"),
     ("Env",    1, "ENV+"),
     ("Global", 0, "GLOBAL"),
-    ("User",   0, "USER"),
-    ("UMap",   0, "U.MAP"),
 ]
 
 def page_slot(p):
@@ -530,7 +528,7 @@ module_json = {
     "abbrev": "TBL",
     "version": VERSION,
     "description": "2-oscillator wavetable synth - 8-voice poly, sub, noise, "
-                   "multimode filter, 8 macros. Serum/Vital/Ableton "
+                   "multimode filter, two envelopes. Serum/Vital/Ableton "
                    "wavetables via Move Manager.",
     "author": "athousanddetails; after Wavetable (Roland Rabien / FigBug, BSD-3)",
     "dsp": "dsp.so",
@@ -615,22 +613,7 @@ lines += [
 ]
 
 # User-macro wiring: pot index, selector index, and option->param-index map.
-target_map = ["-1"]
-for p in BASE_PARAMS:
-    if p["type"] != "file" and p["key"] not in NOT_TARGETS:
-        target_map.append(f'TB_P_{p["key"].upper()}')
 lines += [
-    "/* User macros: u{i} pots write through to their selected target. */",
-    "#define TB_USER_MACROS 8",
-    "static const int tb_user_pots[TB_USER_MACROS] = {",
-    "    " + ", ".join(f"TB_P_U{i}" for i in range(1, 9)) + " };",
-    "static const int tb_user_sels[TB_USER_MACROS] = {",
-    "    " + ", ".join(f"TB_P_U{i}_TARGET" for i in range(1, 9)) + " };",
-    f"/* selector option index -> param index (0 = None) */",
-    f"static const int tb_user_target_map[{len(target_map)}] = {{",
-    "    " + ",\n    ".join(", ".join(target_map[i:i+6])
-                            for i in range(0, len(target_map), 6)) + " };",
-    "",
     "#endif /* TABLOR_PARAMS_H */",
 ]
 
