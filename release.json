@@ -1,6 +1,6 @@
 {
-  "version": "1.1.1",
-  "download_url": "https://github.com/athousanddetails/schwung-tablor/releases/download/v1.1.1/tablor-module.tar.gz",
+  "version": "1.2.0",
+  "download_url": "https://github.com/athousanddetails/schwung-tablor/releases/download/v1.2.0/tablor-module.tar.gz",
   "name": "Tablor",
   "description": "2-osc wavetable synth - 8-voice poly, sub, noise, multimode filter, 2 LFOs, mod matrix, user macros. Serum/Vital/Ableton wavetables via Move Manager.",
   "repo_url": "https://github.com/athousanddetails/schwung-tablor"
