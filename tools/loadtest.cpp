@@ -581,9 +581,22 @@ int main(int argc, char **argv)
                         "\"state\":\"TBLR2;vca_a=12;\"}\n", df); fclose(df); }
         put("LT Dup.tblr", "TBLR2;vca_a=12;");
 
-        auto mig = (void (*)()) dlsym(dl, "tb_migrate_for_test");
-        CHECK(mig != nullptr, "the module exposes its migration for testing");
-        if (mig) mig();
+        /* Drive the REAL path: clear the version stamp and boot a second
+         * instance. That exercises the gate as well as the move, and needs no
+         * test-only symbol exported from the shipping module. */
+        ::remove("/data/UserData/schwung/presets/tablor/.installed");
+        void *inst2 = api->create_instance(".", nullptr);
+        CHECK(inst2 != nullptr, "a second instance boots for the migration test");
+        if (inst2) {
+            for (int i = 0; i < 1500; i++) {
+                char rb[8] = {};
+                api->get_param(inst2, "ready", rb, sizeof rb);
+                if (rb[0] == '1') break;
+                struct timespec ts = { 0, 10 * 1000000 };
+                nanosleep(&ts, nullptr);
+            }
+            api->destroy_instance(inst2);
+        }
 
         CHECK(gone("LT Move.tblr") && inStore("LT Move.json"),
               "a .tblr is converted and the original removed");

@@ -192,8 +192,8 @@ static void write_preset_file(const std::string &path, const char *blob)
  */
 static constexpr const char *kSchwungPresetDir =
     "/data/UserData/schwung/presets/tablor";
-static constexpr const char *kFactoryStamp =
-    "/data/UserData/schwung/presets/tablor/.factory-seeded";
+static constexpr const char *kInstalledStamp =
+    "/data/UserData/schwung/presets/tablor/.installed";
 
 /* A NAME becomes both the display string and the file name, so it loses path
  * separators and control characters -- matching Schwung's own safeFileStem --
@@ -272,10 +272,6 @@ static bool schwung_json_holds(const std::string &path, const std::string &blob)
     return raw.find(want) != std::string::npos;
 }
 
-/* Exposed for the loadtest: the migration is the one piece here whose
- * failure mode is silent and destructive, so it is tested directly. */
-extern "C" void tb_migrate_for_test();
-
 /* MOVE every .tblr into Schwung's store: convert, verify, then delete the
  * original. Deleting is what makes this self-completing -- an empty folder is
  * a finished migration, so nothing has to remember that it ran, and a preset
@@ -327,36 +323,42 @@ static void migrate_tblr_into_schwung()
     }
 }
 
-/* Seed the factory sounds, then copy anything the user saved as .tblr. */
-extern "C" void tb_migrate_for_test() { migrate_tblr_into_schwung(); }
-
+/* Seed the factory sounds and move any .tblr across -- ON UPDATE, once.
+ *
+ * The stamp holds the module version that last ran this. A fresh install has
+ * no stamp; an update changes it; every ordinary boot in between matches and
+ * returns immediately, which is the point -- there is nothing to do on a
+ * device that has already been converted, so it should not go looking.
+ *
+ * Version-keyed rather than a plain "done" flag so a release that adds a
+ * factory sound still delivers it, and so a user who somehow still has a
+ * .tblr gets it moved at the next update rather than never.
+ */
 static void export_presets_to_schwung(tablor_instance *inst)
 {
     ::mkdir("/data/UserData/schwung/presets", 0755);
     ::mkdir(kSchwungPresetDir, 0755);
 
-    auto ps = inst->presetList();
-    const int nf = ps->factory_count;
-
-    /* FACTORY: seeded per module version. A release that adds a sound
-     * delivers it; a sound you delete stays deleted until the next update,
-     * rather than reappearing every reboot. */
     char stamp[64] = {};
-    FILE *f = fopen(kFactoryStamp, "r");
+    FILE *f = fopen(kInstalledStamp, "r");
     if (f) { if (!fgets(stamp, sizeof stamp, f)) stamp[0] = 0; fclose(f); }
     for (char *c = stamp; *c; c++) if (*c == '\n') { *c = 0; break; }
-    if (strcmp(stamp, TB_VERSION) != 0) {
-        for (int i = 0; i < nf && i < (int) ps->items.size(); i++) {
-            if (ps->items[(size_t) i].name == "Init") continue;
-            write_schwung_preset(ps->items[(size_t) i].name,
-                                 ps->items[(size_t) i].blob);
-        }
-        f = fopen(kFactoryStamp, "w");
-        if (f) { fprintf(f, "%s\n", TB_VERSION); fclose(f); }
+    if (strcmp(stamp, TB_VERSION) == 0) return;      /* already done for this build */
+
+    /* Factory sounds. Never overwrites: one you edited and re-saved under the
+     * same name is yours now, and one you deleted stays deleted until a
+     * release that changes this version brings it back. */
+    auto ps = inst->presetList();
+    const int nf = ps->factory_count;
+    for (int i = 0; i < nf && i < (int) ps->items.size(); i++) {
+        if (ps->items[(size_t) i].name == "Init") continue;   /* every module has one */
+        write_schwung_preset(ps->items[(size_t) i].name, ps->items[(size_t) i].blob);
     }
 
-    /* USER: moved, not copied. See migrate_tblr_into_schwung. */
     migrate_tblr_into_schwung();
+
+    f = fopen(kInstalledStamp, "w");
+    if (f) { fprintf(f, "%s\n", TB_VERSION); fclose(f); }
 }
 
 /* One-time migration of the old fixed-slot files (presets/user/uN.tbl). */
