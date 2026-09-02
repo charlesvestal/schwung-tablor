@@ -15,7 +15,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
@@ -133,28 +133,15 @@ FEG = dict(
     s = pot("flt_s", "FSUS", "Flt Sustain", 102),
     r = pot("flt_r", "FREL", "Flt Release", 64),
 )
-# Preset names come from the factory bank + 8 fixed user slots, so the picker
-# is an ordinary static enum that works in Movy, Tablor's editor AND the web
-# panel. Save writes the current sound into the chosen user slot.
-PRESET_NAMES = []
-for _line in (ROOT / "src" / "presets" / "factory.tbl").read_text().splitlines():
-    if _line and not _line.startswith("#") and "|" in _line:
-        PRESET_NAMES.append(_line.split("|", 1)[0])
-# User presets are UNLIMITED .tblr files in /data/UserData/UserLibrary/
-# Tablor Presets/ — the live list comes from preset_count/preset_names
-# (Movy's render:'preset' convention; ui_chain and the web panel read the
-# same). The static options here are only the factory fallback.
-PRESET_PAGE = dict(
-    preset = hint(enum("preset", "PRST", "Preset", PRESET_NAMES, 0,
-                       automatable=False), render="preset"),
-    # access:"write" is the 0.12+ trigger contract: the host renders these as
-    # buttons and FIRES them on a click, never scrubs them with a knob. The
-    # first option ("-", drawable in the 5x7 font) is the do-nothing spelling and can never be sent by the
-    # host (see MODULES.md on euclidrum's rnd_preset).
-
-    rnd    = enum("preset_rnd", "RAND", "Rnd Prst", ["-", "Random"], 0,
-                  automatable=False, behavior="trigger"),
-)
+# Presets are Schwung's, not ours. Its browser (shadow_ui_presets.mjs) is
+# reached from the slot, works for every module, auditions as you scroll, and
+# stores under /data/UserData/schwung/presets/<module-id>/ from the module's
+# own `state` blob -- which is to say it needed nothing from Tablor but the
+# blob Tablor already answers. Carrying a second preset system beside it was
+# a page, four cells and a file format to keep honest, for less.
+#
+# The DSP still seeds the factory sounds into that store and copies anything
+# a user had saved as .tblr (export_presets_to_schwung in tablor_plugin.cpp).
 
 GLOBAL = dict(
     mode   = enum("voice_mode", "MODE", "Voice Mode", VOICE_MODES, 0),
@@ -173,11 +160,6 @@ def row(*slots):
     return out
 
 BANKS = [
-    # Movy/web keep a Preset page of their own (they have no native browser);
-    # the stock UI uses the hierarchy's browser level instead.
-    ("Preset", True, [
-        row(PRESET_PAGE["preset"], PRESET_PAGE["rnd"]),
-    ]),
     ("Osc", False, [
         row(O1["table"], O2["table"], O1["pos"], O2["pos"],
             O1["level"], O2["level"], O1["tune"], O2["tune"]),
@@ -222,20 +204,9 @@ def all_params():
 # indirection over knobs that are already one jog away. Schwung's own knob
 # mapping reaches any Tablor parameter from the slot settings and is where a
 # user looks for exactly this.
-BASE_PARAMS = all_params()
-NOT_TARGETS = {"preset", "preset_rnd"}
+PARAMS = all_params()
 
 PARAMS = all_params()
-NOT_TARGETS = {"preset", "preset_rnd"}
-USER_TARGETS = ["None"] + [p["full"] for p in BASE_PARAMS
-                           if p["type"] != "file" and p["key"] not in NOT_TARGETS]
-
-USER_POTS, USER_SELS = [], []
-for i in range(1, 9):
-    USER_POTS.append(pot(f"u{i}", f"USR{i}", f"Macro {i}", 0))
-    USER_SELS.append(enum(f"u{i}_target", f"TGT{i}", f"Macro {i} Target",
-                          USER_TARGETS, 0, automatable=False))
-
 
 PARAMS = all_params()
 
@@ -265,7 +236,6 @@ def movy_slot(p):
 # bankGroups is one entry PER BANK but indexed PER PAGE, so a multi-row bank
 # shifts every following page label. One bank per page, named like ui_chain.
 MOVY_PAGE_NAMES = {
-    ("Preset", 0): "Presets",
     ("Osc", 0): "Osc",    ("Osc", 1): "Unison",  ("Osc", 2): "Shape",
     ("Filter", 0): "Filter",
     ("Env", 0): "Env", ("Env", 1): "Env+",
@@ -336,17 +306,6 @@ def chain_param(p):
 # every save -- so the module publishes it into the contract tail at runtime,
 # exactly like the wavetable enums. A static entry would duplicate the key.
 chain = [chain_param(p) for p in PARAMS if p["key"] != "preset"]
-# Save As: a STRING param, declared straight into the contract. Clicking its
-# cell opens the stock keyboard and the committed text is the new preset's
-# name -- saving and naming are one gesture. A string is opaque, so no knob
-# turn can ever fire it (the failure mode the trigger buttons had). It lives
-# only here and in the hierarchy: it is not a C-table param -- the DSP handles
-# the key directly, like preset_name.
-chain.append({"key": "save_as", "name": "Save", "type": "string",
-              "default": "", "automatable": False})
-# Rename: the existing preset_name key as a visible cell (keyboard on click).
-chain.append({"key": "preset_name", "name": "Rename", "type": "string",
-              "default": "", "automatable": False})
 chain_json = json.dumps(chain, separators=(",", ":"))
 assert "%" not in chain_json, "chain_params must be printf-safe (served verbatim)"
 
@@ -356,7 +315,6 @@ assert "%" not in chain_json, "chain_params must be printf-safe (served verbatim
 # NOTE: the module must NOT serve ui_hierarchy — the Shadow UI's hierarchy
 # editor takes precedence over ui_chain.js whenever a module offers one.
 PAGE_MAP = [  # (bank name, row index, page title). Section = bank name.
-    ("Preset", 0, "PRESETS"),
     ("Osc",    0, "OSC"),
     ("Osc",    1, "UNISON"),
     ("Osc",    2, "SHAPE"),
@@ -485,7 +443,6 @@ def build_hierarchy():
         root_params.append({"level": lid, "label": label})
     # Preset management is the LAST page: it is where you go when the sound is
     # finished, not something to page through on the way to the filter.
-    root_params.append({"level": "presetpg", "label": "Presets"})
     # No list_param: the fullscreen browser page is gone. Loading lives on
     # the Preset page's PRESET cell -- turn to step, dive for the full list.
     levels["root"] = {
@@ -507,16 +464,6 @@ def build_hierarchy():
     # INSTEAD of its knobs (page_plan.mjs: "the browser takes priority"), and
     # this page needs its four cells. PRESET is an enum whose options are the
     # live preset list, so a turn steps presets and a dive opens the picker.
-    levels["presetpg"] = {
-        "name": "Presets",
-        "params": [
-            {"key": "preset",      "name": "Preset", "type": "enum"},
-            {"key": "save_as",     "name": "Save",   "type": "string"},
-            {"key": "preset_name", "name": "Rename", "type": "string"},
-            hier_param(PRESET_PAGE["rnd"]),
-        ],
-        "knobs": ["preset", "save_as", "preset_name", "preset_rnd"],
-    }
     return {"levels": levels}
 
 hierarchy_json = json.dumps(build_hierarchy(), separators=(",", ":"))

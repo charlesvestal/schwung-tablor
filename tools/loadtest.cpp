@@ -324,9 +324,12 @@ int main(int argc, char **argv)
     /* put the hierarchy back in `big` -- the checks below read it from there */
     n = api->get_param(inst, "ui_hierarchy", big, sizeof big);
 
-    CHECK(!strstr(big, "\"list_param\"") &&
-          strstr(big, "\"preset_name\"") && strstr(big, "\"string\""),
-          "no browser level; Preset page cells declared");
+    /* Presets are Schwung's now: no browser level, and none of our own
+     * preset cells either. The module answers `state`, and that is all the
+     * host's preset browser needs. */
+    CHECK(!strstr(big, "\"list_param\"") && !strstr(big, "\"preset\"") &&
+          !strstr(big, "\"save_as\""),
+          "no preset surface of our own is declared");
     /* Root must hold EXACTLY its 8 knobs. A 9th param spills into a "Main 2"
      * continuation page carrying that one cell -- which is what putting
      * Rename on root did, and it is pure noise between Main and the sections. */
@@ -491,79 +494,11 @@ int main(int argc, char **argv)
         settle(api, inst);
     }
 
-    /* A preset saved BEFORE the LFOs and mod slots were removed still names
-     * them. Those keys no longer exist, so they must be ignored -- not
-     * refuse the blob, and not corrupt the keys that do exist around them. */
-    {
-        api->set_param(inst, "flt_freq", "20");
-        api->set_param(inst, "synth:state",
-                       "TBLR2;flt_freq=99;lfo1_shape=4;lfo1_rate=35;m1_src=1;"
-                       "m1_dst=13;m1_amt=110;m1_on=1;wt1_pos=77;");
-        settle(api, inst);
-        api->get_param(inst, "flt_freq", buf, sizeof buf);
-        CHECK(!strcmp(buf, "99"), "an old preset's surviving keys still apply (flt_freq %s)", buf);
-        api->get_param(inst, "wt1_pos", buf, sizeof buf);
-        CHECK(!strcmp(buf, "77"), "keys AFTER the dead ones apply too (wt1_pos %s)", buf);
-        /* clear first: get_param leaves the buffer untouched for a key it
+    /* clear first: get_param leaves the buffer untouched for a key it
          * does not know, so an unzeroed buf would read as the LAST answer */
         memset(buf, 0, sizeof buf);
         api->get_param(inst, "lfo1_rate", buf, sizeof buf);
         CHECK(buf[0] == 0, "a removed key answers nothing -> \"%s\"", buf);
-    }
-
-    /* ---- the preset-page tap buttons ---- */
-    {
-        /* Saving a name that already exists is an OVERWRITE, not a second
-         * file. Deleting a leftover here would not help: the module's preset
-         * list is cached and only rescans when IT writes, so the count would
-         * still include the file we just removed. So ask the filesystem what
-         * to expect instead, and clean up at the end. */
-        const char *probe = "/data/UserData/UserLibrary/Tablor Presets/LT Probe.tblr";
-        struct stat pst;
-        const int fresh = (::stat(probe, &pst) == 0) ? 0 : 1;
-        api->get_param(inst, "preset_count", buf, sizeof buf);
-        int before = atoi(buf);
-        api->set_param(inst, "save_as", "LT Probe");    /* the keyboard commit */
-        settle(api, inst);
-        api->get_param(inst, "preset_count", buf, sizeof buf);
-        CHECK(atoi(buf) == before + fresh,
-              "SAVE AS %s (%d -> %s)",
-              fresh ? "makes a fresh preset" : "overwrites the same name",
-              before, buf);
-        const int afterSave = atoi(buf);
-        api->get_param(inst, "preset_name", buf, sizeof buf);
-        CHECK(!strcmp(buf, "LT Probe"),
-              "and it is named what was typed -> \"%s\"", buf);
-        /* the PRESET cell's options are the live list: the new name must be
-         * republished into the contract so turn/dive can reach it */
-        /* (the at-boot case is asserted earlier, before anything is saved) */
-        n = api->get_param(inst, "chain_params", big, sizeof big);
-        CHECK(strstr(big, "\"key\":\"preset\"") && strstr(big, "\"LT Probe\""),
-              "the PRESET cell's options include the just-saved preset");
-
-        api->set_param(inst, "save_as", "");            /* blank commit: no-op */
-        settle(api, inst);
-        api->get_param(inst, "preset_count", buf, sizeof buf);
-        CHECK(atoi(buf) == afterSave, "a blank Save As saves nothing");
-
-        api->get_param(inst, "preset", buf, sizeof buf);
-        int cur = atoi(buf);
-        int moved = 0;
-        for (int i = 0; i < 4 && !moved; i++) {
-            api->set_param(inst, "preset_rnd", "Random");
-            settle(api, inst);
-            api->get_param(inst, "preset", buf, sizeof buf);
-            if (atoi(buf) != cur) moved = 1;
-            cur = atoi(buf);
-        }
-        CHECK(moved, "RANDOM button lands on a different preset");
-        api->set_param(inst, "preset_rnd", "-");        /* idle: must be a no-op */
-        settle(api, inst);
-        api->get_param(inst, "preset", buf, sizeof buf);
-        CHECK(atoi(buf) == cur, "idle write does NOT fire the trigger");
-        api->set_param(inst, "preset", "0");
-        settle(api, inst);
-    }
 
     /* ---- a note-off must release its voice whatever mode we are in NOW ----
      * Reported from hardware as a note that keeps sounding until you play
@@ -601,31 +536,77 @@ int main(int argc, char **argv)
         api->on_midi(inst, all_off, 3, 0);
     }
 
-    /* ---- factory presets: count/name served, applying CHANGES params,
-     * and switching presets resets what the previous one touched ---- */
-    n = api->get_param(inst, "preset_count", buf, sizeof buf);
-    int nPresets = atoi(buf);
-    api->get_param(inst, "preset_factory_count", buf, sizeof buf);
-    int nFactory = atoi(buf);
-    CHECK(nFactory == 8 && nPresets >= nFactory,
-          "preset counts: %d factory, %d total", nFactory, nPresets);
+    /* ---- presets are Schwung's: the module seeds its factory sounds into
+     * that store and recalls through `state`, the same key the host's preset
+     * browser writes (shadow_ui_presets.mjs applyStateBlob). Nothing here
+     * touches the user's own library -- an earlier version of this test
+     * renamed and overwrote real user presets on the device it ran on. */
+    {
+        const char *dir = "/data/UserData/schwung/presets/tablor";
+        struct stat st;
+        CHECK(::stat(dir, &st) == 0, "the module seeded Schwung's preset folder");
 
-    api->set_param(inst, "preset", "2");                /* Neu Bass: mono */
-    api->get_param(inst, "preset_name", buf, sizeof buf);
-    CHECK(!strcmp(buf, "Neu Bass"), "preset 2 name -> \"%s\"", buf);
-    api->get_param(inst, "voice_mode", buf, sizeof buf);
-    CHECK(!strcmp(buf, "Mono"), "Neu Bass sets mono (\"%s\")", buf);
-    api->get_param(inst, "wt1_table", buf, sizeof buf);
-    CHECK(strstr(buf, "NK - ACTIVE") != nullptr, "Neu Bass loads its table");
+        char pj[512];
+        snprintf(pj, sizeof pj, "%s/Neu Bass.json", dir);
+        FILE *jf = fopen(pj, "r");
+        CHECK(jf != nullptr, "a factory sound is there as a .json");
+        if (jf) {
+            static char raw[8192];
+            size_t got = fread(raw, 1, sizeof raw - 1, jf);
+            raw[got] = 0;
+            fclose(jf);
+            CHECK(strstr(raw, "\"module\":\"tablor\"") && strstr(raw, "\"version\":1"),
+                  "it carries Schwung's fields");
+            /* the state must survive VERBATIM -- escaping the blob like a
+             * name once turned /data/... into -data..., which loads nothing */
+            CHECK(strstr(raw, "\"state\":\"TBLR2;") != nullptr, "state is our blob");
+            const char *wp = strstr(raw, "wt1_table=");
+            CHECK(wp && !strncmp(wp + 10, "/data/UserData/", 15),
+                  "the wavetable path is intact, not escaped into nonsense");
 
-    api->set_param(inst, "preset", "0");                /* Init resets */
-    api->get_param(inst, "voice_mode", buf, sizeof buf);
-    CHECK(!strcmp(buf, "Poly"), "Init preset resets to poly (\"%s\")", buf);
-    api->get_param(inst, "wt1_table", buf, sizeof buf);
-    CHECK(buf[0] == 0, "Init preset resets table to built-in");
+            /* recall it the way the host does, and hear it land */
+            const char *st0 = strstr(raw, "\"state\":\"");
+            if (st0) {
+                static char blob[4096];
+                const char *e = strchr(st0 + 9, '"');
+                size_t len = e ? (size_t)(e - (st0 + 9)) : 0;
+                if (len && len < sizeof blob) {
+                    memcpy(blob, st0 + 9, len); blob[len] = 0;
+                    api->set_param(inst, "voice_mode", "Poly");
+                    api->set_param(inst, "state", blob);
+                    settle(api, inst);
+                    api->get_param(inst, "voice_mode", buf, sizeof buf);
+                    CHECK(!strcmp(buf, "Mono"), "recall applies it (Neu Bass is mono, got \"%s\")", buf);
+                    api->get_param(inst, "wt1_table", buf, sizeof buf);
+                    CHECK(strstr(buf, "NK - ACTIVE") != nullptr,
+                          "and loads its wavetable -> \"%s\"", buf);
+                }
+            }
+        }
+        api->set_param(inst, "voice_mode", "Poly");
+    }
 
-    /* preset audibly plays */
-    api->set_param(inst, "preset", "6");                /* Glass Bells */
+    /* a recalled preset audibly plays. Glass Bells, straight from Schwung's
+     * store, through the same `state` write its browser performs. */
+    {
+        FILE *jf = fopen("/data/UserData/schwung/presets/tablor/Glass Bells.json", "r");
+        if (jf) {
+            static char raw[8192];
+            size_t got = fread(raw, 1, sizeof raw - 1, jf);
+            raw[got] = 0; fclose(jf);
+            const char *st0 = strstr(raw, "\"state\":\"");
+            const char *e = st0 ? strchr(st0 + 9, '"') : nullptr;
+            if (e) {
+                static char blob[4096];
+                size_t len = (size_t)(e - (st0 + 9));
+                if (len < sizeof blob) {
+                    memcpy(blob, st0 + 9, len); blob[len] = 0;
+                    api->set_param(inst, "state", blob);
+                    settle(api, inst);
+                }
+            }
+        }
+    }
     api->on_midi(inst, note_on, 3, 0);
     long pPeak = 0;
     for (int b = 0; b < 150; b++) {
@@ -637,59 +618,6 @@ int main(int argc, char **argv)
     }
     CHECK(pPeak > 1000, "Glass Bells makes sound (peak %ld)", pPeak);
     api->on_midi(inst, all_off, 3, 0);
-
-    /* file-based user presets: save NEW -> a .tblr appears, rename moves
-     * the file, recall round-trips, overwrite targets by index */
-    api->set_param(inst, "flt_freq", "42");
-    api->set_param(inst, "save_preset", "new");
-    settle(api, inst);
-    api->get_param(inst, "preset_name", buf, sizeof buf);
-    CHECK(!strncmp(buf, "Untitled", 8), "save new -> \"%s\"", buf);
-    /* relative to what was there a moment ago, not to the count at boot:
-     * the library is the user's and may already hold their own presets */
-    api->get_param(inst, "preset_count", buf, sizeof buf);
-    CHECK(atoi(buf) >= nPresets + 1, "preset_count grew to %s", buf);
-
-    api->set_param(inst, "preset_name", "LOADTEST SOUND");
-    settle(api, inst);
-    api->get_param(inst, "preset_name", buf, sizeof buf);
-    CHECK(!strcmp(buf, "LOADTEST SOUND"), "rename (file move) -> \"%s\"", buf);
-    {
-        struct stat st;
-        CHECK(stat("/data/UserData/UserLibrary/Tablor Presets/"
-                   "LOADTEST SOUND.tblr", &st) == 0,
-              "renamed .tblr file exists in the user library");
-    }
-
-    api->set_param(inst, "flt_freq", "127");
-    api->set_param(inst, "preset", "LOADTEST SOUND");   /* recall by name */
-    api->get_param(inst, "flt_freq", buf, sizeof buf);
-    CHECK(!strcmp(buf, "42"), "recall restores flt_freq (\"%s\")", buf);
-
-    n = api->get_param(inst, "preset_names", big, sizeof big);
-    CHECK(n > 2 && big[0] == '[' && strstr(big, "\"LOADTEST SOUND\"") &&
-          strstr(big, "\"Neu Bass\""), "preset_names JSON has user + factory");
-
-    /* overwrite by user index, then clean up the test file */
-    api->get_param(inst, "preset", buf, sizeof buf);
-    int userIdx = atoi(buf) - nFactory;
-    char cmd[32];
-    snprintf(cmd, sizeof cmd, "user:%d", userIdx);
-    api->set_param(inst, "flt_res", "99");
-    api->set_param(inst, "save_preset", cmd);
-    settle(api, inst);
-    api->set_param(inst, "flt_res", "0");
-    api->set_param(inst, "preset", "LOADTEST SOUND");
-    api->get_param(inst, "flt_res", buf, sizeof buf);
-    CHECK(!strcmp(buf, "99"), "overwrite user:%d round-trips (\"%s\")", userIdx, buf);
-    remove("/data/UserData/UserLibrary/Tablor Presets/LOADTEST SOUND.tblr");
-
-    api->set_param(inst, "preset", "0");
-
-    /* Clean up the probe preset LAST. Removing it mid-run desynced the
-     * module's cached preset list -- the file was gone but the count still
-     * included it, so a later assertion about the count failed. */
-    ::remove("/data/UserData/UserLibrary/Tablor Presets/LT Probe.tblr");
 
     api->destroy_instance(inst);
     dlclose(dl);

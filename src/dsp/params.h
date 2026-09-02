@@ -4,8 +4,8 @@
 #ifndef TABLOR_PARAMS_H
 #define TABLOR_PARAMS_H
 
-#define TB_VERSION "1.1.1"
-#define TB_PARAM_COUNT 49
+#define TB_VERSION "1.2.0"
+#define TB_PARAM_COUNT 47
 
 typedef enum { TB_INT = 0, TB_ENUM = 1, TB_PATH = 2 } tb_param_type_t;
 
@@ -21,69 +21,63 @@ typedef struct {
 #define TB_WT_SLOTS 2
 
 enum {
-    TB_P_PRESET = 0,
-    TB_P_PRESET_RND = 1,
-    TB_P_WT1_TABLE = 2,
-    TB_P_WT2_TABLE = 3,
-    TB_P_WT1_POS = 4,
-    TB_P_WT2_POS = 5,
-    TB_P_WT1_LEVEL = 6,
-    TB_P_WT2_LEVEL = 7,
-    TB_P_WT1_TUNE = 8,
-    TB_P_WT2_TUNE = 9,
-    TB_P_WT1_UNI = 10,
-    TB_P_WT1_DETUNE = 11,
-    TB_P_WT1_SPREAD = 12,
-    TB_P_WT1_PAN = 13,
-    TB_P_WT2_UNI = 14,
-    TB_P_WT2_DETUNE = 15,
-    TB_P_WT2_SPREAD = 16,
-    TB_P_WT2_PAN = 17,
-    TB_P_WT1_BEND = 18,
-    TB_P_WT1_FORMANT = 19,
-    TB_P_WT2_BEND = 20,
-    TB_P_WT2_FORMANT = 21,
-    TB_P_SUB_TUNE = 22,
-    TB_P_FLT_FREQ = 23,
-    TB_P_FLT_RES = 24,
-    TB_P_FLT_TYPE = 25,
-    TB_P_FLT_ENV = 26,
-    TB_P_SUB_LEVEL = 27,
-    TB_P_SUB_WAVE = 28,
-    TB_P_NOISE_LEVEL = 29,
-    TB_P_NOISE_TYPE = 30,
-    TB_P_VCA_A = 31,
-    TB_P_VCA_D = 32,
-    TB_P_VCA_S = 33,
-    TB_P_VCA_R = 34,
-    TB_P_FLT_A = 35,
-    TB_P_FLT_D = 36,
-    TB_P_FLT_S = 37,
-    TB_P_FLT_R = 38,
-    TB_P_VCA_VEL = 39,
-    TB_P_FLT_KEY = 40,
-    TB_P_FLT_VEL = 41,
-    TB_P_VOICE_MODE = 42,
-    TB_P_VOICES = 43,
-    TB_P_GLIDE = 44,
-    TB_P_GLIDE_MODE = 45,
-    TB_P_LEGATO = 46,
-    TB_P_PB_RANGE = 47,
-    TB_P_VOLUME = 48,
+    TB_P_WT1_TABLE = 0,
+    TB_P_WT2_TABLE = 1,
+    TB_P_WT1_POS = 2,
+    TB_P_WT2_POS = 3,
+    TB_P_WT1_LEVEL = 4,
+    TB_P_WT2_LEVEL = 5,
+    TB_P_WT1_TUNE = 6,
+    TB_P_WT2_TUNE = 7,
+    TB_P_WT1_UNI = 8,
+    TB_P_WT1_DETUNE = 9,
+    TB_P_WT1_SPREAD = 10,
+    TB_P_WT1_PAN = 11,
+    TB_P_WT2_UNI = 12,
+    TB_P_WT2_DETUNE = 13,
+    TB_P_WT2_SPREAD = 14,
+    TB_P_WT2_PAN = 15,
+    TB_P_WT1_BEND = 16,
+    TB_P_WT1_FORMANT = 17,
+    TB_P_WT2_BEND = 18,
+    TB_P_WT2_FORMANT = 19,
+    TB_P_SUB_TUNE = 20,
+    TB_P_FLT_FREQ = 21,
+    TB_P_FLT_RES = 22,
+    TB_P_FLT_TYPE = 23,
+    TB_P_FLT_ENV = 24,
+    TB_P_SUB_LEVEL = 25,
+    TB_P_SUB_WAVE = 26,
+    TB_P_NOISE_LEVEL = 27,
+    TB_P_NOISE_TYPE = 28,
+    TB_P_VCA_A = 29,
+    TB_P_VCA_D = 30,
+    TB_P_VCA_S = 31,
+    TB_P_VCA_R = 32,
+    TB_P_FLT_A = 33,
+    TB_P_FLT_D = 34,
+    TB_P_FLT_S = 35,
+    TB_P_FLT_R = 36,
+    TB_P_VCA_VEL = 37,
+    TB_P_FLT_KEY = 38,
+    TB_P_FLT_VEL = 39,
+    TB_P_VOICE_MODE = 40,
+    TB_P_VOICES = 41,
+    TB_P_GLIDE = 42,
+    TB_P_GLIDE_MODE = 43,
+    TB_P_LEGATO = 44,
+    TB_P_PB_RANGE = 45,
+    TB_P_VOLUME = 46,
 };
 
-static const char *const tb_opts_0[] = { "Init", "First Contact", "Neu Bass", "Formant Keys", "Dust Pad", "Sub Punch", "Glass Bells", "Res Bass" };
-static const char *const tb_opts_1[] = { "-", "Random" };
-static const char *const tb_opts_2[] = { "LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24" };
-static const char *const tb_opts_3[] = { "Sine", "Triangle", "Saw", "Square", "Pulse", "Pulse Tr" };
-static const char *const tb_opts_4[] = { "White", "Pink" };
-static const char *const tb_opts_5[] = { "Poly", "Mono" };
-static const char *const tb_opts_6[] = { "Off", "Glissando", "Portamento" };
-static const char *const tb_opts_7[] = { "Off", "On" };
+static const char *const tb_opts_0[] = { "LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24" };
+static const char *const tb_opts_1[] = { "Sine", "Triangle", "Saw", "Square", "Pulse", "Pulse Tr" };
+static const char *const tb_opts_2[] = { "White", "Pink" };
+static const char *const tb_opts_3[] = { "Poly", "Mono" };
+static const char *const tb_opts_4[] = { "Off", "Glissando", "Portamento" };
+static const char *const tb_opts_5[] = { "Off", "On" };
 
 static const tb_param_t tb_params[TB_PARAM_COUNT] = {
-    { "preset", TB_ENUM, 0, 7, 0, 8, tb_opts_0 },
-    { "preset_rnd", TB_ENUM, 0, 1, 0, 2, tb_opts_1 },
     { "wt1_table", TB_PATH, 0, 0, 0, 0, 0 },
     { "wt2_table", TB_PATH, 0, 0, 0, 0, 0 },
     { "wt1_pos", TB_INT, 0, 127, 0, 0, 0 },
@@ -107,12 +101,12 @@ static const tb_param_t tb_params[TB_PARAM_COUNT] = {
     { "sub_tune", TB_INT, -24, 24, -12, 0, 0 },
     { "flt_freq", TB_INT, 0, 127, 127, 0, 0 },
     { "flt_res", TB_INT, 0, 127, 0, 0, 0 },
-    { "flt_type", TB_ENUM, 0, 7, 1, 8, tb_opts_2 },
+    { "flt_type", TB_ENUM, 0, 7, 1, 8, tb_opts_0 },
     { "flt_env", TB_INT, 0, 127, 64, 0, 0 },
     { "sub_level", TB_INT, 0, 127, 0, 0, 0 },
-    { "sub_wave", TB_ENUM, 0, 5, 0, 6, tb_opts_3 },
+    { "sub_wave", TB_ENUM, 0, 5, 0, 6, tb_opts_1 },
     { "noise_level", TB_INT, 0, 127, 0, 0, 0 },
-    { "noise_type", TB_ENUM, 0, 1, 0, 2, tb_opts_4 },
+    { "noise_type", TB_ENUM, 0, 1, 0, 2, tb_opts_2 },
     { "vca_a", TB_INT, 0, 127, 51, 0, 0 },
     { "vca_d", TB_INT, 0, 127, 64, 0, 0 },
     { "vca_s", TB_INT, 0, 127, 102, 0, 0 },
@@ -124,11 +118,11 @@ static const tb_param_t tb_params[TB_PARAM_COUNT] = {
     { "vca_vel", TB_INT, 0, 127, 100, 0, 0 },
     { "flt_key", TB_INT, 0, 127, 0, 0, 0 },
     { "flt_vel", TB_INT, 0, 127, 0, 0, 0 },
-    { "voice_mode", TB_ENUM, 0, 1, 0, 2, tb_opts_5 },
+    { "voice_mode", TB_ENUM, 0, 1, 0, 2, tb_opts_3 },
     { "voices", TB_INT, 1, 8, 8, 0, 0 },
     { "glide", TB_INT, 0, 127, 0, 0, 0 },
-    { "glide_mode", TB_ENUM, 0, 2, 0, 3, tb_opts_6 },
-    { "legato", TB_ENUM, 0, 1, 0, 2, tb_opts_7 },
+    { "glide_mode", TB_ENUM, 0, 2, 0, 3, tb_opts_4 },
+    { "legato", TB_ENUM, 0, 1, 0, 2, tb_opts_5 },
     { "pb_range", TB_INT, 0, 24, 2, 0, 0 },
     { "volume", TB_INT, 0, 127, 100, 0, 0 },
 };
@@ -136,12 +130,12 @@ static const tb_param_t tb_params[TB_PARAM_COUNT] = {
 /* chain_params: fully static, served verbatim. It MUST stay cheap —
  * get_param runs on the SPI callback. */
 static const char *tb_chain_params_json =
-    "[{\"key\":\"preset_rnd\",\"name\":\"Rnd Prst\",\"type\":\"enum\",\"options\":[\"-\",\"Random\"],\"default\":\"-\",\"access\":\"write\"},{\"key\":\"wt1_table\",\"name\":\"WT1\",\"type\":\"filepath\",\"root\":\"/data/UserData/UserLibrary/Wavetables\",\"start_path\":\"/data/UserData/UserLibrary/Wavetables\",\"filter\":[\".wav\",\".wt2048\",\".wt1024\",\".wt512\",\".wt256\"],\"live_preview\":true,\"default\":\"\"},{\"key\":\"wt2_table\",\"name\":\"WT2\",\"type\":\"filepath\",\"root\":\"/data/UserData/UserLibrary/Wavetables\",\"start_path\":\"/data/UserData/UserLibrary/Wavetables\",\"filter\":[\".wav\",\".wt2048\",\".wt1024\",\".wt512\",\".wt256\"],\"live_preview\":true,\"default\":\"\"},{\"key\":\"wt1_pos\",\"name\":\"WT1 Pos\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt2_pos\",\"name\":\"WT2 Pos\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt1_level\",\"name\":\"WT1 Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":100,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"wt2_level\",\"name\":\"WT2 Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"wt1_tune\",\"name\":\"WT1 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24,\"default\":0},{\"key\":\"wt2_tune\",\"name\":\"WT2 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24,\"default\":0},{\"key\":\"wt1_uni\",\"name\":\"WT1 Unison\",\"type\":\"int\",\"min\":1,\"max\":4,\"default\":1},{\"key\":\"wt1_detune\",\"name\":\"WT1 Detune\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt1_spread\",\"name\":\"WT1 Spread\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt1_pan\",\"name\":\"WT1 Pan\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt2_uni\",\"name\":\"WT2 Unison\",\"type\":\"int\",\"min\":1,\"max\":4,\"default\":1},{\"key\":\"wt2_detune\",\"name\":\"WT2 Detune\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt2_spread\",\"name\":\"WT2 Spread\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt2_pan\",\"name\":\"WT2 Pan\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt1_bend\",\"name\":\"WT1 Bend\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt1_formant\",\"name\":\"WT1 Formant\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt2_bend\",\"name\":\"WT2 Bend\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt2_formant\",\"name\":\"WT2 Formant\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"sub_tune\",\"name\":\"Sub Tune\",\"type\":\"int\",\"min\":-24,\"max\":24,\"default\":-12},{\"key\":\"flt_freq\",\"name\":\"Filter Freq\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":127,\"viz\":{\"group\":\"flt\",\"role\":\"cutoff\"}},{\"key\":\"flt_res\",\"name\":\"Filter Res\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"group\":\"flt\",\"role\":\"resonance\"}},{\"key\":\"flt_type\",\"name\":\"Filter Type\",\"type\":\"enum\",\"options\":[\"LP 12\",\"LP 24\",\"HP 12\",\"HP 24\",\"BP 12\",\"BP 24\",\"Notch 12\",\"Notch 24\"],\"default\":\"LP 24\",\"viz\":{\"group\":\"flt\",\"role\":\"mode\"}},{\"key\":\"flt_env\",\"name\":\"Filter EG Amt\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"sub_level\",\"name\":\"Sub Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"sub_wave\",\"name\":\"Sub Wave\",\"type\":\"enum\",\"options\":[\"Sine\",\"Triangle\",\"Saw\",\"Square\",\"Pulse\",\"Pulse Tr\"],\"default\":\"Sine\",\"viz\":{\"kind\":\"waveform\"}},{\"key\":\"noise_level\",\"name\":\"Noise Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"noise_type\",\"name\":\"Noise Type\",\"type\":\"enum\",\"options\":[\"White\",\"Pink\"],\"default\":\"White\"},{\"key\":\"vca_a\",\"name\":\"VCA Attack\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":51,\"viz\":{\"group\":\"amp\",\"role\":\"attack\"}},{\"key\":\"vca_d\",\"name\":\"VCA Decay\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"amp\",\"role\":\"decay\"}},{\"key\":\"vca_s\",\"name\":\"VCA Sustain\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":102,\"viz\":{\"group\":\"amp\",\"role\":\"sustain\"}},{\"key\":\"vca_r\",\"name\":\"VCA Release\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"amp\",\"role\":\"release\"}},{\"key\":\"flt_a\",\"name\":\"Flt Attack\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":51,\"viz\":{\"group\":\"fenv\",\"role\":\"attack\"}},{\"key\":\"flt_d\",\"name\":\"Flt Decay\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"fenv\",\"role\":\"decay\"}},{\"key\":\"flt_s\",\"name\":\"Flt Sustain\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":102,\"viz\":{\"group\":\"fenv\",\"role\":\"sustain\"}},{\"key\":\"flt_r\",\"name\":\"Flt Release\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"fenv\",\"role\":\"release\"}},{\"key\":\"vca_vel\",\"name\":\"VCA Velocity\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":100},{\"key\":\"flt_key\",\"name\":\"Key Track\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"flt_vel\",\"name\":\"Vel Track\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"voice_mode\",\"name\":\"Voice Mode\",\"type\":\"enum\",\"options\":[\"Poly\",\"Mono\"],\"default\":\"Poly\"},{\"key\":\"voices\",\"name\":\"Voices\",\"type\":\"int\",\"min\":1,\"max\":8,\"default\":8},{\"key\":\"glide\",\"name\":\"Glide\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"glide_mode\",\"name\":\"Glide Mode\",\"type\":\"enum\",\"options\":[\"Off\",\"Glissando\",\"Portamento\"],\"default\":\"Off\"},{\"key\":\"legato\",\"name\":\"Legato\",\"type\":\"enum\",\"options\":[\"Off\",\"On\"],\"default\":\"Off\",\"viz\":{\"kind\":\"switch\"}},{\"key\":\"pb_range\",\"name\":\"PB Range\",\"type\":\"int\",\"min\":0,\"max\":24,\"default\":2},{\"key\":\"volume\",\"name\":\"Volume\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":100,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"save_as\",\"name\":\"Save\",\"type\":\"string\",\"default\":\"\",\"automatable\":false},{\"key\":\"preset_name\",\"name\":\"Rename\",\"type\":\"string\",\"default\":\"\",\"automatable\":false}]";
+    "[{\"key\":\"wt1_table\",\"name\":\"WT1\",\"type\":\"filepath\",\"root\":\"/data/UserData/UserLibrary/Wavetables\",\"start_path\":\"/data/UserData/UserLibrary/Wavetables\",\"filter\":[\".wav\",\".wt2048\",\".wt1024\",\".wt512\",\".wt256\"],\"live_preview\":true,\"default\":\"\"},{\"key\":\"wt2_table\",\"name\":\"WT2\",\"type\":\"filepath\",\"root\":\"/data/UserData/UserLibrary/Wavetables\",\"start_path\":\"/data/UserData/UserLibrary/Wavetables\",\"filter\":[\".wav\",\".wt2048\",\".wt1024\",\".wt512\",\".wt256\"],\"live_preview\":true,\"default\":\"\"},{\"key\":\"wt1_pos\",\"name\":\"WT1 Pos\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt2_pos\",\"name\":\"WT2 Pos\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt1_level\",\"name\":\"WT1 Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":100,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"wt2_level\",\"name\":\"WT2 Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"wt1_tune\",\"name\":\"WT1 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24,\"default\":0},{\"key\":\"wt2_tune\",\"name\":\"WT2 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24,\"default\":0},{\"key\":\"wt1_uni\",\"name\":\"WT1 Unison\",\"type\":\"int\",\"min\":1,\"max\":4,\"default\":1},{\"key\":\"wt1_detune\",\"name\":\"WT1 Detune\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt1_spread\",\"name\":\"WT1 Spread\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt1_pan\",\"name\":\"WT1 Pan\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt2_uni\",\"name\":\"WT2 Unison\",\"type\":\"int\",\"min\":1,\"max\":4,\"default\":1},{\"key\":\"wt2_detune\",\"name\":\"WT2 Detune\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt2_spread\",\"name\":\"WT2 Spread\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"wt2_pan\",\"name\":\"WT2 Pan\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt1_bend\",\"name\":\"WT1 Bend\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt1_formant\",\"name\":\"WT1 Formant\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt2_bend\",\"name\":\"WT2 Bend\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"wt2_formant\",\"name\":\"WT2 Formant\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"sub_tune\",\"name\":\"Sub Tune\",\"type\":\"int\",\"min\":-24,\"max\":24,\"default\":-12},{\"key\":\"flt_freq\",\"name\":\"Filter Freq\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":127,\"viz\":{\"group\":\"flt\",\"role\":\"cutoff\"}},{\"key\":\"flt_res\",\"name\":\"Filter Res\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"group\":\"flt\",\"role\":\"resonance\"}},{\"key\":\"flt_type\",\"name\":\"Filter Type\",\"type\":\"enum\",\"options\":[\"LP 12\",\"LP 24\",\"HP 12\",\"HP 24\",\"BP 12\",\"BP 24\",\"Notch 12\",\"Notch 24\"],\"default\":\"LP 24\",\"viz\":{\"group\":\"flt\",\"role\":\"mode\"}},{\"key\":\"flt_env\",\"name\":\"Filter EG Amt\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64},{\"key\":\"sub_level\",\"name\":\"Sub Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"sub_wave\",\"name\":\"Sub Wave\",\"type\":\"enum\",\"options\":[\"Sine\",\"Triangle\",\"Saw\",\"Square\",\"Pulse\",\"Pulse Tr\"],\"default\":\"Sine\",\"viz\":{\"kind\":\"waveform\"}},{\"key\":\"noise_level\",\"name\":\"Noise Level\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0,\"viz\":{\"kind\":\"fader\"}},{\"key\":\"noise_type\",\"name\":\"Noise Type\",\"type\":\"enum\",\"options\":[\"White\",\"Pink\"],\"default\":\"White\"},{\"key\":\"vca_a\",\"name\":\"VCA Attack\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":51,\"viz\":{\"group\":\"amp\",\"role\":\"attack\"}},{\"key\":\"vca_d\",\"name\":\"VCA Decay\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"amp\",\"role\":\"decay\"}},{\"key\":\"vca_s\",\"name\":\"VCA Sustain\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":102,\"viz\":{\"group\":\"amp\",\"role\":\"sustain\"}},{\"key\":\"vca_r\",\"name\":\"VCA Release\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"amp\",\"role\":\"release\"}},{\"key\":\"flt_a\",\"name\":\"Flt Attack\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":51,\"viz\":{\"group\":\"fenv\",\"role\":\"attack\"}},{\"key\":\"flt_d\",\"name\":\"Flt Decay\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"fenv\",\"role\":\"decay\"}},{\"key\":\"flt_s\",\"name\":\"Flt Sustain\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":102,\"viz\":{\"group\":\"fenv\",\"role\":\"sustain\"}},{\"key\":\"flt_r\",\"name\":\"Flt Release\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":64,\"viz\":{\"group\":\"fenv\",\"role\":\"release\"}},{\"key\":\"vca_vel\",\"name\":\"VCA Velocity\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":100},{\"key\":\"flt_key\",\"name\":\"Key Track\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"flt_vel\",\"name\":\"Vel Track\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"voice_mode\",\"name\":\"Voice Mode\",\"type\":\"enum\",\"options\":[\"Poly\",\"Mono\"],\"default\":\"Poly\"},{\"key\":\"voices\",\"name\":\"Voices\",\"type\":\"int\",\"min\":1,\"max\":8,\"default\":8},{\"key\":\"glide\",\"name\":\"Glide\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":0},{\"key\":\"glide_mode\",\"name\":\"Glide Mode\",\"type\":\"enum\",\"options\":[\"Off\",\"Glissando\",\"Portamento\"],\"default\":\"Off\"},{\"key\":\"legato\",\"name\":\"Legato\",\"type\":\"enum\",\"options\":[\"Off\",\"On\"],\"default\":\"Off\",\"viz\":{\"kind\":\"switch\"}},{\"key\":\"pb_range\",\"name\":\"PB Range\",\"type\":\"int\",\"min\":0,\"max\":24,\"default\":2},{\"key\":\"volume\",\"name\":\"Volume\",\"type\":\"int\",\"min\":0,\"max\":127,\"default\":100,\"viz\":{\"kind\":\"fader\"}}]";
 
 /* ui_hierarchy for the STOCK Shadow UI (Schwung 0.12+): knob pages
  * with declared viz graphics, native preset browser, file browser,
  * on-screen keyboard for renames. Tablor ships no custom editor. */
 static const char *tb_ui_hierarchy_json =
-    "{\"levels\":{\"unison\":{\"name\":\"Unison\",\"params\":[{\"key\":\"wt1_uni\",\"name\":\"WT1 Unison\",\"type\":\"int\",\"min\":1,\"max\":4},{\"key\":\"wt1_detune\",\"name\":\"WT1 Detune\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_spread\",\"name\":\"WT1 Spread\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_pan\",\"name\":\"WT1 Pan\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_uni\",\"name\":\"WT2 Unison\",\"type\":\"int\",\"min\":1,\"max\":4},{\"key\":\"wt2_detune\",\"name\":\"WT2 Detune\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_spread\",\"name\":\"WT2 Spread\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_pan\",\"name\":\"WT2 Pan\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"wt1_uni\",\"wt1_detune\",\"wt1_spread\",\"wt1_pan\",\"wt2_uni\",\"wt2_detune\",\"wt2_spread\",\"wt2_pan\"]},\"shape\":{\"name\":\"Shape\",\"params\":[{\"key\":\"wt1_bend\",\"name\":\"WT1 Bend\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_formant\",\"name\":\"WT1 Formant\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_bend\",\"name\":\"WT2 Bend\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_formant\",\"name\":\"WT2 Formant\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"sub_tune\",\"name\":\"Sub Tune\",\"type\":\"int\",\"min\":-24,\"max\":24}],\"knobs\":[\"wt1_bend\",\"wt1_formant\",\"wt2_bend\",\"wt2_formant\",\"sub_tune\"]},\"filter\":{\"name\":\"Filter\",\"params\":[{\"key\":\"flt_freq\",\"name\":\"Filter Freq\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_res\",\"name\":\"Filter Res\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_type\",\"name\":\"Filter Type\",\"type\":\"enum\",\"options\":[\"LP 12\",\"LP 24\",\"HP 12\",\"HP 24\",\"BP 12\",\"BP 24\",\"Notch 12\",\"Notch 24\"]},{\"key\":\"flt_env\",\"name\":\"Filter EG Amt\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"sub_level\",\"name\":\"Sub Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"sub_wave\",\"name\":\"Sub Wave\",\"type\":\"enum\",\"options\":[\"Sine\",\"Triangle\",\"Saw\",\"Square\",\"Pulse\",\"Pulse Tr\"]},{\"key\":\"noise_level\",\"name\":\"Noise Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"noise_type\",\"name\":\"Noise Type\",\"type\":\"enum\",\"options\":[\"White\",\"Pink\"]}],\"knobs\":[\"flt_freq\",\"flt_res\",\"flt_type\",\"flt_env\",\"sub_level\",\"sub_wave\",\"noise_level\",\"noise_type\"]},\"env\":{\"name\":\"Env\",\"params\":[{\"key\":\"vca_a\",\"name\":\"VCA Attack\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"vca_d\",\"name\":\"VCA Decay\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"vca_s\",\"name\":\"VCA Sustain\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"vca_r\",\"name\":\"VCA Release\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_a\",\"name\":\"Flt Attack\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_d\",\"name\":\"Flt Decay\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_s\",\"name\":\"Flt Sustain\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_r\",\"name\":\"Flt Release\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"vca_a\",\"vca_d\",\"vca_s\",\"vca_r\",\"flt_a\",\"flt_d\",\"flt_s\",\"flt_r\"]},\"env+\":{\"name\":\"Env+\",\"params\":[{\"key\":\"vca_vel\",\"name\":\"VCA Velocity\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_key\",\"name\":\"Key Track\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_vel\",\"name\":\"Vel Track\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"vca_vel\",\"flt_key\",\"flt_vel\"]},\"global\":{\"name\":\"Global\",\"params\":[{\"key\":\"voice_mode\",\"name\":\"Voice Mode\",\"type\":\"enum\",\"options\":[\"Poly\",\"Mono\"]},{\"key\":\"voices\",\"name\":\"Voices\",\"type\":\"int\",\"min\":1,\"max\":8},{\"key\":\"glide\",\"name\":\"Glide\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"glide_mode\",\"name\":\"Glide Mode\",\"type\":\"enum\",\"options\":[\"Off\",\"Glissando\",\"Portamento\"]},{\"key\":\"legato\",\"name\":\"Legato\",\"type\":\"enum\",\"options\":[\"Off\",\"On\"]},{\"key\":\"pb_range\",\"name\":\"PB Range\",\"type\":\"int\",\"min\":0,\"max\":24},{\"key\":\"volume\",\"name\":\"Volume\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"voice_mode\",\"voices\",\"glide\",\"glide_mode\",\"legato\",\"pb_range\",\"volume\"]},\"root\":{\"name\":\"Tablor\",\"save_param\":\"save_preset\",\"params\":[{\"key\":\"wt1_select\",\"name\":\"WT1 Table\",\"type\":\"enum\"},{\"key\":\"wt2_select\",\"name\":\"WT2 Table\",\"type\":\"enum\"},{\"key\":\"wt1_pos\",\"name\":\"WT1 Pos\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_pos\",\"name\":\"WT2 Pos\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_level\",\"name\":\"WT1 Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_level\",\"name\":\"WT2 Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_tune\",\"name\":\"WT1 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24},{\"key\":\"wt2_tune\",\"name\":\"WT2 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24},{\"level\":\"unison\",\"label\":\"Unison\"},{\"level\":\"shape\",\"label\":\"Shape\"},{\"level\":\"filter\",\"label\":\"Filter\"},{\"level\":\"env\",\"label\":\"Env\"},{\"level\":\"env+\",\"label\":\"Env+\"},{\"level\":\"global\",\"label\":\"Global\"},{\"level\":\"presetpg\",\"label\":\"Presets\"}],\"knobs\":[\"wt1_select\",\"wt2_select\",\"wt1_pos\",\"wt2_pos\",\"wt1_level\",\"wt2_level\",\"wt1_tune\",\"wt2_tune\"]},\"presetpg\":{\"name\":\"Presets\",\"params\":[{\"key\":\"preset\",\"name\":\"Preset\",\"type\":\"enum\"},{\"key\":\"save_as\",\"name\":\"Save\",\"type\":\"string\"},{\"key\":\"preset_name\",\"name\":\"Rename\",\"type\":\"string\"},{\"key\":\"preset_rnd\",\"name\":\"Rnd Prst\",\"type\":\"enum\",\"options\":[\"-\",\"Random\"]}],\"knobs\":[\"preset\",\"save_as\",\"preset_name\",\"preset_rnd\"]}}}";
+    "{\"levels\":{\"unison\":{\"name\":\"Unison\",\"params\":[{\"key\":\"wt1_uni\",\"name\":\"WT1 Unison\",\"type\":\"int\",\"min\":1,\"max\":4},{\"key\":\"wt1_detune\",\"name\":\"WT1 Detune\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_spread\",\"name\":\"WT1 Spread\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_pan\",\"name\":\"WT1 Pan\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_uni\",\"name\":\"WT2 Unison\",\"type\":\"int\",\"min\":1,\"max\":4},{\"key\":\"wt2_detune\",\"name\":\"WT2 Detune\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_spread\",\"name\":\"WT2 Spread\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_pan\",\"name\":\"WT2 Pan\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"wt1_uni\",\"wt1_detune\",\"wt1_spread\",\"wt1_pan\",\"wt2_uni\",\"wt2_detune\",\"wt2_spread\",\"wt2_pan\"]},\"shape\":{\"name\":\"Shape\",\"params\":[{\"key\":\"wt1_bend\",\"name\":\"WT1 Bend\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_formant\",\"name\":\"WT1 Formant\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_bend\",\"name\":\"WT2 Bend\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_formant\",\"name\":\"WT2 Formant\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"sub_tune\",\"name\":\"Sub Tune\",\"type\":\"int\",\"min\":-24,\"max\":24}],\"knobs\":[\"wt1_bend\",\"wt1_formant\",\"wt2_bend\",\"wt2_formant\",\"sub_tune\"]},\"filter\":{\"name\":\"Filter\",\"params\":[{\"key\":\"flt_freq\",\"name\":\"Filter Freq\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_res\",\"name\":\"Filter Res\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_type\",\"name\":\"Filter Type\",\"type\":\"enum\",\"options\":[\"LP 12\",\"LP 24\",\"HP 12\",\"HP 24\",\"BP 12\",\"BP 24\",\"Notch 12\",\"Notch 24\"]},{\"key\":\"flt_env\",\"name\":\"Filter EG Amt\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"sub_level\",\"name\":\"Sub Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"sub_wave\",\"name\":\"Sub Wave\",\"type\":\"enum\",\"options\":[\"Sine\",\"Triangle\",\"Saw\",\"Square\",\"Pulse\",\"Pulse Tr\"]},{\"key\":\"noise_level\",\"name\":\"Noise Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"noise_type\",\"name\":\"Noise Type\",\"type\":\"enum\",\"options\":[\"White\",\"Pink\"]}],\"knobs\":[\"flt_freq\",\"flt_res\",\"flt_type\",\"flt_env\",\"sub_level\",\"sub_wave\",\"noise_level\",\"noise_type\"]},\"env\":{\"name\":\"Env\",\"params\":[{\"key\":\"vca_a\",\"name\":\"VCA Attack\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"vca_d\",\"name\":\"VCA Decay\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"vca_s\",\"name\":\"VCA Sustain\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"vca_r\",\"name\":\"VCA Release\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_a\",\"name\":\"Flt Attack\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_d\",\"name\":\"Flt Decay\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_s\",\"name\":\"Flt Sustain\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_r\",\"name\":\"Flt Release\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"vca_a\",\"vca_d\",\"vca_s\",\"vca_r\",\"flt_a\",\"flt_d\",\"flt_s\",\"flt_r\"]},\"env+\":{\"name\":\"Env+\",\"params\":[{\"key\":\"vca_vel\",\"name\":\"VCA Velocity\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_key\",\"name\":\"Key Track\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"flt_vel\",\"name\":\"Vel Track\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"vca_vel\",\"flt_key\",\"flt_vel\"]},\"global\":{\"name\":\"Global\",\"params\":[{\"key\":\"voice_mode\",\"name\":\"Voice Mode\",\"type\":\"enum\",\"options\":[\"Poly\",\"Mono\"]},{\"key\":\"voices\",\"name\":\"Voices\",\"type\":\"int\",\"min\":1,\"max\":8},{\"key\":\"glide\",\"name\":\"Glide\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"glide_mode\",\"name\":\"Glide Mode\",\"type\":\"enum\",\"options\":[\"Off\",\"Glissando\",\"Portamento\"]},{\"key\":\"legato\",\"name\":\"Legato\",\"type\":\"enum\",\"options\":[\"Off\",\"On\"]},{\"key\":\"pb_range\",\"name\":\"PB Range\",\"type\":\"int\",\"min\":0,\"max\":24},{\"key\":\"volume\",\"name\":\"Volume\",\"type\":\"int\",\"min\":0,\"max\":127}],\"knobs\":[\"voice_mode\",\"voices\",\"glide\",\"glide_mode\",\"legato\",\"pb_range\",\"volume\"]},\"root\":{\"name\":\"Tablor\",\"save_param\":\"save_preset\",\"params\":[{\"key\":\"wt1_select\",\"name\":\"WT1 Table\",\"type\":\"enum\"},{\"key\":\"wt2_select\",\"name\":\"WT2 Table\",\"type\":\"enum\"},{\"key\":\"wt1_pos\",\"name\":\"WT1 Pos\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_pos\",\"name\":\"WT2 Pos\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_level\",\"name\":\"WT1 Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt2_level\",\"name\":\"WT2 Level\",\"type\":\"int\",\"min\":0,\"max\":127},{\"key\":\"wt1_tune\",\"name\":\"WT1 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24},{\"key\":\"wt2_tune\",\"name\":\"WT2 Tune\",\"type\":\"int\",\"min\":-24,\"max\":24},{\"level\":\"unison\",\"label\":\"Unison\"},{\"level\":\"shape\",\"label\":\"Shape\"},{\"level\":\"filter\",\"label\":\"Filter\"},{\"level\":\"env\",\"label\":\"Env\"},{\"level\":\"env+\",\"label\":\"Env+\"},{\"level\":\"global\",\"label\":\"Global\"}],\"knobs\":[\"wt1_select\",\"wt2_select\",\"wt1_pos\",\"wt2_pos\",\"wt1_level\",\"wt2_level\",\"wt1_tune\",\"wt2_tune\"]}}}";
 
 #endif /* TABLOR_PARAMS_H */

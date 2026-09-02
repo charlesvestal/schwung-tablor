@@ -3,51 +3,6 @@
  "name": "Tablor",
  "banks": [
   {
-   "name": "Presets",
-   "global": true,
-   "rows": [
-    [
-     {
-      "key": "preset",
-      "short": "PRST",
-      "full": "Preset",
-      "type": "enum",
-      "options": [
-       "Init",
-       "First Contact",
-       "Neu Bass",
-       "Formant Keys",
-       "Dust Pad",
-       "Sub Punch",
-       "Glass Bells",
-       "Res Bass"
-      ],
-      "automatable": false,
-      "render": "preset"
-     },
-     {
-      "key": "preset_rnd",
-      "short": "RAND",
-      "full": "Rnd Prst",
-      "type": "enum",
-      "options": [
-       "-",
-       "Random"
-      ],
-      "automatable": false,
-      "behavior": "trigger",
-      "access": "write"
-     },
-     null,
-     null,
-     null,
-     null,
-     null,
-     null
-    ]
-   ]
-  },
-  {
    "name": "Osc",
    "rows": [
     [

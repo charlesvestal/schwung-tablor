@@ -9,7 +9,7 @@ else stays out of the way.
 
 ![Main page: both wavetables on knobs 1-2, position, level and tune](docs/img/move-main.png)
 
-8 pages, 49 controls, no menus inside menus. The graphics are Schwung's own
+7 pages, 47 controls, no menus inside menus. The graphics are Schwung's own
 — declared, not drawn by us — so the filter curve and both envelopes are the
 real values:
 
@@ -29,9 +29,10 @@ real values:
   movement, point one of Schwung's own slot LFOs at any Tablor knob — that
   is what the host already does well, and it saves four pages of surface
 - **8 voices** polyphonic, or mono with glide/legato
-- **8 factory presets** plus **unlimited user presets** — plain `.tblr` files
-  in `UserLibrary/Tablor Presets/`, name-as-filename, copy/share them freely;
-  save + name entirely from the hardware
+- **8 factory sounds**, seeded into Schwung's own preset store on first run.
+  Presets, modulation and knob mapping are all the host's: Shift+click the
+  synth for **[User Presets]**, and point a slot LFO or a mapped knob at any
+  Tablor parameter from the slot settings
 - A seeded library of **115 wavetables**
 - **Web panel** — full control surface in the browser at
   `move.local:7700/remote-ui`

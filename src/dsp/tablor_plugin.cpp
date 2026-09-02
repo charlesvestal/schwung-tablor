@@ -174,6 +174,114 @@ static void write_preset_file(const std::string &path, const char *blob)
     }
 }
 
+/* ---- Schwung's own preset store -------------------------------------------
+ *
+ * Schwung keeps module presets at
+ *   /data/UserData/schwung/presets/<module-id>/<name>.json
+ * as {"name","module","version","state"} where `state` is the very blob this
+ * module already answers for `state` (shadow_ui_presets.mjs). Its browser is
+ * reached from the slot, works for every module, and auditions a preset as
+ * you scroll -- so Tablor's own store is the odd one out, not the feature.
+ *
+ * Both halves run once on the worker at startup: the factory sounds are
+ * seeded there so a fresh install has them, and any .tblr the user already
+ * saved is copied across. The .tblr files are LEFT ALONE -- a migration that
+ * deletes the only copy of someone's sound is not a migration -- and a stamp
+ * file stops the copy repeating, so a preset deleted in Schwung stays
+ * deleted instead of reappearing on the next boot.
+ */
+static constexpr const char *kSchwungPresetDir =
+    "/data/UserData/schwung/presets/tablor";
+static constexpr const char *kMigratedStamp =
+    "/data/UserData/schwung/presets/tablor/.tblr-migrated";
+static constexpr const char *kFactoryStamp =
+    "/data/UserData/schwung/presets/tablor/.factory-seeded";
+
+/* A NAME becomes both the display string and the file name, so it loses path
+ * separators and control characters -- matching Schwung's own safeFileStem --
+ * and loses quotes and backslashes too, since it is read back out with a
+ * regex (/"name"\s*:\s*"([^"]+)"/) that neither escapes nor tolerates them. */
+static std::string json_safe_name(const std::string &in)
+{
+    std::string o;
+    for (char c : in) {
+        if (c == '"' || c == '\\' || (unsigned char) c < 0x20) continue;
+        if (c == '/') { o += '-'; continue; }
+        o += c;
+    }
+    while (!o.empty() && o.back() == ' ') o.pop_back();
+    return o.empty() ? std::string("Preset") : o;
+}
+
+/* A STATE BLOB is data and must survive intact: it carries absolute wavetable
+ * paths, so a slash is content, not a separator. Escaping it as the name is
+ * escaped turned "/data/UserData/..." into "-data-UserData-...", which loads
+ * as a missing file -- every migrated preset would have fallen back to the
+ * Init table, silently. Only the two characters JSON itself reserves are
+ * touched, and they are escaped rather than dropped. */
+static std::string json_escape(const std::string &in)
+{
+    std::string o;
+    for (char c : in) {
+        if (c == '"' || c == '\\') { o += '\\'; o += c; continue; }
+        if ((unsigned char) c < 0x20) continue;      /* no newlines in a blob */
+        o += c;
+    }
+    return o;
+}
+
+static void write_schwung_preset(const std::string &name, const std::string &blob)
+{
+    const std::string safe = json_safe_name(name);
+    const std::string path = std::string(kSchwungPresetDir) + "/" + safe + ".json";
+    struct stat st;
+    if (::stat(path.c_str(), &st) == 0) return;      /* never overwrite */
+    FILE *f = fopen(path.c_str(), "w");
+    if (!f) return;
+    fprintf(f, "{\"name\":\"%s\",\"module\":\"tablor\",\"version\":1,\"state\":\"%s\"}\n",
+            safe.c_str(), json_escape(blob).c_str());
+    fclose(f);
+}
+
+/* Seed the factory sounds, then copy anything the user saved as .tblr. */
+static void export_presets_to_schwung(tablor_instance *inst)
+{
+    ::mkdir("/data/UserData/schwung/presets", 0755);
+    ::mkdir(kSchwungPresetDir, 0755);
+
+    auto ps = inst->presetList();
+    const int nf = ps->factory_count;
+
+    /* FACTORY: seeded per module version. A release that adds a sound
+     * delivers it; a sound you delete stays deleted until the next update,
+     * rather than reappearing every reboot. */
+    char stamp[64] = {};
+    FILE *f = fopen(kFactoryStamp, "r");
+    if (f) { if (!fgets(stamp, sizeof stamp, f)) stamp[0] = 0; fclose(f); }
+    for (char *c = stamp; *c; c++) if (*c == '\n') { *c = 0; break; }
+    if (strcmp(stamp, TB_VERSION) != 0) {
+        for (int i = 0; i < nf && i < (int) ps->items.size(); i++) {
+            if (ps->items[(size_t) i].name == "Init") continue;
+            write_schwung_preset(ps->items[(size_t) i].name,
+                                 ps->items[(size_t) i].blob);
+        }
+        f = fopen(kFactoryStamp, "w");
+        if (f) { fprintf(f, "%s\n", TB_VERSION); fclose(f); }
+    }
+
+    /* USER: copied ONCE, ever. The .tblr files are left where they are --
+     * a migration that deletes the only copy of someone's sound is not a
+     * migration -- and the stamp means a preset deleted in Schwung's browser
+     * does not come back on the next boot. */
+    struct stat st;
+    if (::stat(kMigratedStamp, &st) == 0) return;
+    for (int i = nf; i < (int) ps->items.size(); i++)
+        write_schwung_preset(ps->items[(size_t) i].name,
+                             ps->items[(size_t) i].blob);
+    f = fopen(kMigratedStamp, "w");
+    if (f) { fputs("user .tblr presets copied into schwung's store\n", f); fclose(f); }
+}
+
 /* One-time migration of the old fixed-slot files (presets/user/uN.tbl). */
 static void migrate_old_user_slots(tablor_instance *inst)
 {
@@ -482,23 +590,6 @@ static void tb_publish_selection(tablor_instance *inst)
     out += ",{\"key\":\"wt1_shape\",\"name\":\"WT1 Shape\",\"type\":\"string\",\"access\":\"read\"}"
            ",{\"key\":\"wt2_shape\",\"name\":\"WT2 Shape\",\"type\":\"string\",\"access\":\"read\"}"
            ",{\"key\":\"wt_paths\",\"name\":\"WT Paths\",\"type\":\"string\",\"access\":\"read\"}";
-    /* The PRESET cell: its options ARE the preset list, factory + user, so
-     * the page's enum can step and dive through everything. Republished from
-     * the worker whenever a save or rename changes the list. */
-    {
-        auto ps = inst->presetList();
-        out += ",{\"key\":\"preset\",\"name\":\"Preset\",\"type\":\"enum\","
-               "\"automatable\":false,\"options\":[";
-        size_t np = ps->items.size();
-        if (np > 128) np = 128;          /* the host's MAX_ENUM_OPTIONS */
-        for (size_t i = 0; i < np; i++) {
-            if (i) out += ",";
-            out += "\"";
-            tb_json_append(out, ps->items[i].name);
-            out += "\"";
-        }
-        out += "]}";
-    }
     out += "]";
 
     std::atomic_store(&inst->sel,
@@ -598,10 +689,6 @@ static void build_state_blob(tablor_instance *inst)
                               "%s=%s;", tb_params[i].key, path);
             continue;
         }
-        /* preset machinery is not part of a sound */
-        if (!strcmp(tb_params[i].key, "preset") ||
-            !strncmp(tb_params[i].key, "save_", 5))
-            continue;
         float v = inst->params()[i];
         if (v == tb_params[i].def) continue;            /* defaults are implicit */
         o += snprintf(inst->state_buf + o, sizeof inst->state_buf - (size_t) o,
@@ -672,124 +759,6 @@ static void tb_set_param(void *instance, const char *key, const char *val)
 
     if (!strcmp(k, "state")) {
         apply_state_blob(inst, val);
-        return;
-    }
-
-    if (!strcmp(k, "preset")) {
-        /* accept a preset NAME (Movy/web may echo the enum option) or index */
-        auto ps = inst->presetList();
-        int pi = -1;
-        for (size_t i = 0; i < ps->items.size(); i++)
-            if (ps->items[i].name == val) { pi = (int) i; break; }
-        if (pi < 0) {
-            char *end = nullptr;
-            long n2 = strtol(val, &end, 10);
-            if (end == val) return;
-            pi = (int) n2;
-        }
-        if (pi < 0 || pi >= (int) ps->items.size()) return;
-        inst->preset_index = pi;
-        /* a preset is a full sound: reset to defaults first so nothing
-         * from the previous sound leaks through */
-        reset_to_defaults(inst);
-        apply_state_blob(inst, ps->items[(size_t) pi].blob.c_str());
-        return;
-    }
-
-    /* The tap-buttons. A trigger fires on any value that is not its idle
-     * first option -- the host sends option 1 through the enum wire, so both
-     * the NAME and "1" must fire (MODULES.md, access:"write"). */
-    /* Save As: the committed keyboard text IS the new preset's name. */
-    if (!strcmp(k, "save_as")) {
-        /* A blank commit means "never mind" -- sanitize would helpfully turn
-         * it into "Untitled", which is exactly the file spam this replaces. */
-        bool any = false;
-        for (const char *c = val; *c; c++) if (*c != ' ') { any = true; break; }
-        if (!any) return;
-        std::string name = sanitize_preset_name(val);
-        build_state_blob(inst);
-        std::string blob = inst->state_buf;
-        /* unique_preset_name stats the filesystem, so it runs on the worker --
-         * this is the SPI callback */
-        inst->loader.post([inst, name, blob] {
-            /* The keyboard prefills the current preset's name, so committing
-             * it unchanged means "save over mine" -- the path already exists
-             * and is simply rewritten. A new name makes a new file. */
-            std::string path = preset_file_for(name);
-            write_preset_file(path, blob.c_str());
-            scan_user_presets(inst);
-            select_preset_by_path(inst, path);
-            tb_publish_selection(inst);       /* the PRESET cell's options */
-        });
-        return;
-    }
-    if (!strcmp(k, "preset_rnd")) {
-        if (!strcmp(val, "-") || !strcmp(val, "0")) return;
-        auto ps = inst->presetList();
-        int n = (int) ps->items.size();
-        if (n < 2) return;
-        /* never re-pick the current one: a button that sometimes does
-         * nothing feels broken */
-        int cur = inst->preset_index.load();
-        int pick = rand() % (n - 1);
-        if (pick >= cur) pick++;
-        char buf2[16];
-        snprintf(buf2, sizeof buf2, "%d", pick);
-        tb_set_param(inst, "preset", buf2);
-        return;
-    }
-
-    if (!strcmp(k, "save_preset")) {
-        /* Trigger: never stores a value. Destination:
-         *   "new"      -> a fresh .tblr file ("Untitled", "Untitled 2", …)
-         *   "user:N"   -> overwrite the N-th user preset (0-based)
-         *   "1" / "On" -> overwrite the current user preset, else new */
-        build_state_blob(inst);
-        std::string path;
-        auto ps = inst->presetList();
-        if (!strcmp(val, "new")) {
-            path = preset_file_for(unique_preset_name("Untitled"));
-        } else if (!strncmp(val, "user:", 5)) {
-            int ui = ps->factory_count + atoi(val + 5);
-            if (ui < ps->factory_count || ui >= (int) ps->items.size())
-                return;
-            path = ps->items[(size_t) ui].path;
-        } else if (!strcmp(val, "1") || !strcmp(val, "On") || !strcmp(val, "Save")) {
-            if (inst->preset_index.load() >= ps->factory_count)
-                path = ps->items[(size_t) inst->preset_index.load()].path;
-            else
-                path = preset_file_for(unique_preset_name("Untitled"));
-        } else {
-            return;
-        }
-        if (path.empty()) return;
-        /* file I/O belongs off the audio callback */
-        std::string blob = inst->state_buf;
-        inst->loader.post([inst, path, blob] {
-            write_preset_file(path, blob.c_str());
-            scan_user_presets(inst);
-            select_preset_by_path(inst, path);
-            tb_publish_selection(inst);       /* the PRESET cell's options */
-        });
-        return;
-    }
-
-    if (!strcmp(k, "preset_name")) {
-        /* rename the CURRENT user preset = rename its file */
-        auto ps = inst->presetList();
-        if (inst->preset_index.load() < ps->factory_count) return;
-        const auto &cur = ps->items[(size_t) inst->preset_index.load()];
-        std::string want = sanitize_preset_name(val);
-        if (want == cur.name) return;
-        std::string blob = cur.blob, oldPath = cur.path;
-        inst->loader.post([inst, want, blob, oldPath] {
-            std::string newPath = preset_file_for(unique_preset_name(want));
-            write_preset_file(newPath, blob.c_str());
-            ::remove(oldPath.c_str());
-            scan_user_presets(inst);
-            select_preset_by_path(inst, newPath);
-            tb_publish_selection(inst);
-        });
         return;
     }
 
@@ -914,19 +883,6 @@ static int tb_get_param(void *instance, const char *key, char *buf, int buf_len)
 
     /* Triggers read as their idle option, so the host learns the NAME wire
      * and a page shows a quiet "-" rather than junk. */
-    if (!strcmp(key, "save_preset") || !strcmp(key, "preset_rnd"))
-        return write_str(buf, buf_len, "-");
-    if (!strcmp(key, "save_as")) {
-        /* Prefill the keyboard with the name of the preset being edited, so
-         * confirm = overwrite. Factory presets prefill blank: they cannot be
-         * overwritten, so the user is choosing a NEW name. */
-        auto ps = inst->presetList();
-        int pi = inst->preset_index.load();
-        if (pi >= ps->factory_count && pi < (int) ps->items.size())
-            return write_str(buf, buf_len, ps->items[(size_t) pi].name.c_str());
-        return write_str(buf, buf_len, "");
-    }
-
     /* The host asks this while a contract re-read is pending and holds off
      * for as long as it says "1" (page_controller isLoadingSays). Ours is
      * true while the worker still owes a scan, a table or a republish. */
@@ -950,49 +906,6 @@ static int tb_get_param(void *instance, const char *key, char *buf, int buf_len)
     if (!strcmp(key, "ready"))
         return write_str(buf, buf_len,
                          inst->ready.load(std::memory_order_relaxed) ? "1" : "0");
-
-    if (!strcmp(key, "preset_count")) {
-        char tmp[16];
-        snprintf(tmp, sizeof tmp, "%d", (int) inst->presetList()->items.size());
-        return write_str(buf, buf_len, tmp);
-    }
-    if (!strcmp(key, "preset_factory_count")) {
-        char tmp[16];
-        snprintf(tmp, sizeof tmp, "%d", inst->presetList()->factory_count);
-        return write_str(buf, buf_len, tmp);
-    }
-    if (!strcmp(key, "preset")) {
-        char tmp[16];
-        snprintf(tmp, sizeof tmp, "%d", inst->preset_index.load());
-        return write_str(buf, buf_len, tmp);
-    }
-    if (!strcmp(key, "preset_name")) {
-        auto ps = inst->presetList();
-        int pi = inst->preset_index.load();
-        if (pi < 0 || pi >= (int) ps->items.size())
-            return write_str(buf, buf_len, "");
-        return write_str(buf, buf_len, ps->items[(size_t) pi].name.c_str());
-    }
-    if (!strcmp(key, "preset_names")) {
-        /* JSON array — Movy's buildPresetParam convention, also used by
-         * ui_chain's list overlay and the web panel. */
-        int o = 0;
-        buf[o++] = '[';
-        auto ps = inst->presetList();
-        for (size_t i = 0; i < ps->items.size() && o < buf_len - 8; i++) {
-            if (i) buf[o++] = ',';
-            buf[o++] = '"';
-            for (const char *s = ps->items[i].name.c_str();
-                 *s && o < buf_len - 8; s++) {
-                if (*s == '"' || *s == '\\') buf[o++] = '\\';
-                buf[o++] = *s;
-            }
-            buf[o++] = '"';
-        }
-        buf[o++] = ']';
-        buf[o] = 0;
-        return o;
-    }
 
     if (!strcmp(key, "state")) {
         build_state_blob(inst);
@@ -1066,6 +979,7 @@ static void *tb_create_instance(const char *module_dir, const char *json_default
          * single scan — so get_param never has to. */
         tb_publish_selection(inst);
         load_presets(inst);                                /* fopen + scan   */
+        export_presets_to_schwung(inst);   /* into Schwung's own preset store */
         /* AGAIN, now that the presets exist. The first call publishes the
          * wavetable lists, but the PRESET cell's options ARE the preset list,
          * and load_presets runs after it -- so a single early call left that
