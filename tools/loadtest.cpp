@@ -536,6 +536,68 @@ int main(int argc, char **argv)
         api->on_midi(inst, all_off, 3, 0);
     }
 
+    /* ---- the .tblr migration: convert, verify, delete ----
+     *
+     * Runs on every start, and is self-completing because it removes what it
+     * converts: an empty folder is a finished migration, so nothing has to
+     * remember that it ran and a preset deleted in Schwung's browser has no
+     * .tblr left to come back from.
+     *
+     * Three cases, and the last two are the ones that bite:
+     *   - a plain preset moves and the .tblr goes
+     *   - a .tblr whose .json ALREADY holds it is dropped, NOT duplicated
+     *     (that is the upgrade path from the release that copied without
+     *     deleting -- getting it wrong doubles everyone's library)
+     *   - a name already owned by a DIFFERENT sound takes the next free one,
+     *     so a user preset called "Neu Bass" cannot overwrite the factory
+     *     sound of that name, nor be overwritten by it
+     */
+    {
+        const char *lib = "/data/UserData/UserLibrary/Tablor Presets";
+        const char *store = "/data/UserData/schwung/presets/tablor";
+        ::mkdir(lib, 0755);
+        struct stat st;
+
+        auto put = [&](const char *file, const char *body) {
+            char pth[512]; snprintf(pth, sizeof pth, "%s/%s", lib, file);
+            FILE *f = fopen(pth, "w"); if (f) { fputs(body, f); fputc('\n', f); fclose(f); }
+        };
+        auto gone = [&](const char *file) {
+            char pth[512]; snprintf(pth, sizeof pth, "%s/%s", lib, file);
+            return ::stat(pth, &st) != 0;
+        };
+        auto inStore = [&](const char *file) {
+            char pth[512]; snprintf(pth, sizeof pth, "%s/%s", store, file);
+            return ::stat(pth, &st) == 0;
+        };
+
+        put("LT Move.tblr", "TBLR2;flt_res=71;");
+        put("Neu Bass.tblr", "TBLR2;flt_freq=7;");   /* collides with a factory name */
+
+        /* a .tblr that its .json already holds, exactly */
+        char dup[512]; snprintf(dup, sizeof dup, "%s/LT Dup.json", store);
+        FILE *df = fopen(dup, "w");
+        if (df) { fputs("{\"name\":\"LT Dup\",\"module\":\"tablor\",\"version\":1,"
+                        "\"state\":\"TBLR2;vca_a=12;\"}\n", df); fclose(df); }
+        put("LT Dup.tblr", "TBLR2;vca_a=12;");
+
+        auto mig = (void (*)()) dlsym(dl, "tb_migrate_for_test");
+        CHECK(mig != nullptr, "the module exposes its migration for testing");
+        if (mig) mig();
+
+        CHECK(gone("LT Move.tblr") && inStore("LT Move.json"),
+              "a .tblr is converted and the original removed");
+        CHECK(gone("LT Dup.tblr") && !inStore("LT Dup 2.json"),
+              "an already-migrated .tblr is dropped, not duplicated");
+        CHECK(gone("Neu Bass.tblr") && inStore("Neu Bass 2.json") && inStore("Neu Bass.json"),
+              "a name owned by another sound takes the next free one");
+
+        char rm[512];
+        snprintf(rm, sizeof rm, "%s/LT Move.json", store);   ::remove(rm);
+        snprintf(rm, sizeof rm, "%s/LT Dup.json", store);    ::remove(rm);
+        snprintf(rm, sizeof rm, "%s/Neu Bass 2.json", store); ::remove(rm);
+    }
+
     /* ---- presets are Schwung's: the module seeds its factory sounds into
      * that store and recalls through `state`, the same key the host's preset
      * browser writes (shadow_ui_presets.mjs applyStateBlob). Nothing here

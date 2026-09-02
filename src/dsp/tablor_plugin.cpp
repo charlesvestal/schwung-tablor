@@ -192,8 +192,6 @@ static void write_preset_file(const std::string &path, const char *blob)
  */
 static constexpr const char *kSchwungPresetDir =
     "/data/UserData/schwung/presets/tablor";
-static constexpr const char *kMigratedStamp =
-    "/data/UserData/schwung/presets/tablor/.tblr-migrated";
 static constexpr const char *kFactoryStamp =
     "/data/UserData/schwung/presets/tablor/.factory-seeded";
 
@@ -230,20 +228,108 @@ static std::string json_escape(const std::string &in)
     return o;
 }
 
+/* Write one preset into Schwung's store. Returns false if it did not land --
+ * the caller is about to delete the source file, so "probably worked" is not
+ * good enough. */
+static bool write_schwung_json(const std::string &path, const std::string &name,
+                               const std::string &blob)
+{
+    FILE *f = fopen(path.c_str(), "w");
+    if (!f) return false;
+    fprintf(f, "{\"name\":\"%s\",\"module\":\"tablor\",\"version\":1,\"state\":\"%s\"}\n",
+            name.c_str(), json_escape(blob).c_str());
+    const bool ok = (fflush(f) == 0);
+    fclose(f);
+    if (!ok) { ::remove(path.c_str()); return false; }
+    struct stat st;                                   /* it exists, and it is not empty */
+    if (::stat(path.c_str(), &st) != 0 || st.st_size < 16) return false;
+    return true;
+}
+
+/* Seed one factory sound. Never overwrites: a factory preset the user edited
+ * and re-saved under the same name is theirs now. */
 static void write_schwung_preset(const std::string &name, const std::string &blob)
 {
     const std::string safe = json_safe_name(name);
     const std::string path = std::string(kSchwungPresetDir) + "/" + safe + ".json";
     struct stat st;
-    if (::stat(path.c_str(), &st) == 0) return;      /* never overwrite */
-    FILE *f = fopen(path.c_str(), "w");
-    if (!f) return;
-    fprintf(f, "{\"name\":\"%s\",\"module\":\"tablor\",\"version\":1,\"state\":\"%s\"}\n",
-            safe.c_str(), json_escape(blob).c_str());
+    if (::stat(path.c_str(), &st) == 0) return;
+    write_schwung_json(path, safe, blob);
+}
+
+/* Does this .json already hold exactly this sound? Then the .tblr beside it
+ * is a leftover from an earlier migration and can simply go. */
+static bool schwung_json_holds(const std::string &path, const std::string &blob)
+{
+    FILE *f = fopen(path.c_str(), "r");
+    if (!f) return false;
+    std::string raw;
+    char chunk[1024];
+    size_t got;
+    while ((got = fread(chunk, 1, sizeof chunk, f)) > 0) raw.append(chunk, got);
     fclose(f);
+    const std::string want = "\"state\":\"" + json_escape(blob) + "\"";
+    return raw.find(want) != std::string::npos;
+}
+
+/* Exposed for the loadtest: the migration is the one piece here whose
+ * failure mode is silent and destructive, so it is tested directly. */
+extern "C" void tb_migrate_for_test();
+
+/* MOVE every .tblr into Schwung's store: convert, verify, then delete the
+ * original. Deleting is what makes this self-completing -- an empty folder is
+ * a finished migration, so nothing has to remember that it ran, and a preset
+ * deleted in Schwung's browser has no .tblr left to come back from.
+ *
+ * The original is removed ONLY after the .json is on disk and non-empty. */
+static void migrate_tblr_into_schwung()
+{
+    DIR *d = ::opendir(kPresetDir);
+    if (!d) return;
+    std::vector<std::string> files;
+    while (dirent *e = ::readdir(d)) {
+        const char *dot = strrchr(e->d_name, '.');
+        if (dot && strcasecmp(dot, ".tblr") == 0) files.push_back(e->d_name);
+    }
+    ::closedir(d);
+
+    for (const std::string &fn : files) {
+        const std::string src = std::string(kPresetDir) + "/" + fn;
+        std::string blob;
+        if (!read_blob_file(src.c_str(), blob) || blob.empty()) continue;
+
+        const std::string stem = fn.substr(0, fn.rfind('.'));
+        const std::string safe = json_safe_name(stem);
+
+        /* Already migrated under this name? Drop the leftover and move on. */
+        std::string path = std::string(kSchwungPresetDir) + "/" + safe + ".json";
+        struct stat st;
+        if (::stat(path.c_str(), &st) == 0) {
+            if (schwung_json_holds(path, blob)) { ::remove(src.c_str()); continue; }
+            /* A DIFFERENT sound owns that name -- a factory seed, most
+             * likely. Take the next free one, the way Schwung's own save
+             * does, rather than overwriting either. */
+            for (int n = 2; n < 100; n++) {
+                char cand[512];
+                snprintf(cand, sizeof cand, "%s/%s %d.json",
+                         kSchwungPresetDir, safe.c_str(), n);
+                if (::stat(cand, &st) != 0) { path = cand; break; }
+            }
+            char disp[256];
+            snprintf(disp, sizeof disp, "%s", path.c_str());
+            const char *slash = strrchr(disp, '/');
+            std::string dispName = slash ? slash + 1 : disp;
+            dispName = dispName.substr(0, dispName.rfind(".json"));
+            if (write_schwung_json(path, dispName, blob)) ::remove(src.c_str());
+            continue;
+        }
+        if (write_schwung_json(path, safe, blob)) ::remove(src.c_str());
+    }
 }
 
 /* Seed the factory sounds, then copy anything the user saved as .tblr. */
+extern "C" void tb_migrate_for_test() { migrate_tblr_into_schwung(); }
+
 static void export_presets_to_schwung(tablor_instance *inst)
 {
     ::mkdir("/data/UserData/schwung/presets", 0755);
@@ -269,17 +355,8 @@ static void export_presets_to_schwung(tablor_instance *inst)
         if (f) { fprintf(f, "%s\n", TB_VERSION); fclose(f); }
     }
 
-    /* USER: copied ONCE, ever. The .tblr files are left where they are --
-     * a migration that deletes the only copy of someone's sound is not a
-     * migration -- and the stamp means a preset deleted in Schwung's browser
-     * does not come back on the next boot. */
-    struct stat st;
-    if (::stat(kMigratedStamp, &st) == 0) return;
-    for (int i = nf; i < (int) ps->items.size(); i++)
-        write_schwung_preset(ps->items[(size_t) i].name,
-                             ps->items[(size_t) i].blob);
-    f = fopen(kMigratedStamp, "w");
-    if (f) { fputs("user .tblr presets copied into schwung's store\n", f); fclose(f); }
+    /* USER: moved, not copied. See migrate_tblr_into_schwung. */
+    migrate_tblr_into_schwung();
 }
 
 /* One-time migration of the old fixed-slot files (presets/user/uN.tbl). */
