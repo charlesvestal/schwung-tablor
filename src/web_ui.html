@@ -108,7 +108,7 @@ canvas.disp{
   background:#0a0b0d; border:1px solid #23262c; border-radius:3px;
   display:block; width:100%; flex:none; min-width:0;
 }
-/* ---- mod + macro rows ---- */
+/* ---- macro rows ---- */
 .row{display:flex; align-items:center; gap:5px; margin-bottom:4px}
 .row .n{color:var(--dim); width:14px; flex:none; text-align:right}
 .row .pill{width:auto; flex:1 1 0; min-width:0; max-width:150px}
@@ -360,39 +360,6 @@ function drawAdsr(a, d, s, r) {
   };
 }
 
-/* LFO: the selected shape, one cycle, scaled by depth and offset. */
-function drawLfo(shape, depth, offset, phase) {
-  return function (g, w, h) {
-    var pad = 8, x0 = pad, x1 = w - pad, mid = h / 2;
-    var amp = (h / 2 - pad) * (depth ? frac(depth) : 1);
-    var off = offset ? (frac(offset) * 2 - 1) : 0;
-    var ph = phase ? frac(phase) : 0;
-    var name = (META[shape] && META[shape].options[num(shape, 0)]) || "Sine";
-    function y(t) {
-      var u = (t + ph) % 1, v;
-      switch (name) {
-        case "Triangle": v = u < .5 ? (u * 4 - 1) : (3 - u * 4); break;
-        case "Saw Up":   v = u * 2 - 1; break;
-        case "Saw Down": v = 1 - u * 2; break;
-        case "Square":   v = u < .5 ? 1 : -1; break;
-        case "Square+":  v = u < .5 ? 1 : 0; break;
-        case "S&H":      v = Math.sin((Math.floor(u * 8) + 1) * 12.9898) ; break;
-        case "Noise":    v = Math.sin((Math.floor(u * 64) + 1) * 78.233); break;
-        default:         v = Math.sin(u * 2 * Math.PI);
-      }
-      return mid - (v + off) * amp;
-    }
-    g.strokeStyle = "#c8834f"; g.lineWidth = 1.5; g.beginPath();
-    for (var i = 0; i <= 128; i++) {
-      var x = x0 + (x1 - x0) * (i / 128), yy = y(i / 128);
-      i ? g.lineTo(x, yy) : g.moveTo(x, yy);
-    }
-    g.stroke();
-    g.strokeStyle = "#23262c"; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(x0, mid); g.lineTo(x1, mid); g.stroke();
-  };
-}
-
 /* Wavetable waterfall, drawn from the REAL table. wtN_shape is
  * "<frames>,<samples>,<data>" with one character per sample, quantised to 64
  * levels over [-1,1] -- built on the module's worker when a table lands, so
@@ -618,32 +585,6 @@ function build() {
             ["vca_vel", "Vel"]], ak);
   var ar = el("div", "col", ab); ar.style.flex = "1"; ar.style.minWidth = "0";
   addCanvas(ar, drawAdsr("vca_a", "vca_d", "vca_s", "vca_r"), 104);
-
-  [1, 2].forEach(function (n) {
-    var lb = panel("s3", "LFO " + n);
-    var lc = el("div", "col", lb); lc.style.flex = "1"; lc.style.minWidth = "0";
-    var l1 = el("div", "knobs", lc);
-    control("lfo" + n + "_shape", "Wave", l1);
-    controls([["lfo" + n + "_rate", "Rate"], ["lfo" + n + "_depth", "Depth"]], l1);
-    var l2 = el("div", "knobs", lc);
-    control("lfo" + n + "_sync", "Sync", l2);
-    controls([["lfo" + n + "_beat", "Beat"], ["lfo" + n + "_phase", "Phase"],
-              ["lfo" + n + "_offset", "Offset"]], l2);
-    addCanvas(lc, drawLfo("lfo" + n + "_shape", "lfo" + n + "_depth",
-                          "lfo" + n + "_offset", "lfo" + n + "_phase"), 54);
-  });
-
-  var mb = panel("s6", "Mod");
-  var mc = el("div", "col", mb); mc.style.flex = "1"; mc.style.minWidth = "0";
-  for (var i = 1; META["m" + i + "_src"]; i++) {
-    var r = el("div", "row", mc);
-    var n = el("div", "n", r); n.textContent = i;
-    control("m" + i + "_on", null, r, "sw");
-    control("m" + i + "_src", null, r);
-    var ar2 = el("div", "arrow", r); ar2.textContent = "→";
-    control("m" + i + "_dst", null, r);
-    control("m" + i + "_amt", "Amt", r);
-  }
 
   var ub = panel("s8", "Macros");
   var uk = el("div", "knobs", el("div", "col", ub));

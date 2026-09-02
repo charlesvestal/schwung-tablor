@@ -18,10 +18,8 @@ public:
     /* Pots are written by set_param (UI thread) and read by the audio
      * thread; aligned float stores are atomic on aarch64. */
     float pots[TB_PARAM_COUNT] = {};
-    ModSlot modSlots[kModSlots];
 
     /* Refresh mod slots from the pot array (call after any m*_ change). */
-    void syncModSlots();
 
     void setHostBpm(float bpm) { hostBpm = bpm; }
 

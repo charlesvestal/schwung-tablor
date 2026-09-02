@@ -20,19 +20,6 @@ Engine::Engine()
     std::atomic_store(&table1, init);
     std::atomic_store(&table2, init);
 
-    syncModSlots();
-}
-
-void Engine::syncModSlots()
-{
-    static const int base[kModSlots] = {
-        TB_P_M1_SRC, TB_P_M2_SRC, TB_P_M3_SRC, TB_P_M4_SRC };
-    for (int i = 0; i < kModSlots; i++) {
-        modSlots[i].src    = (int) pots[base[i] + 0];
-        modSlots[i].dst    = (int) pots[base[i] + 1];
-        modSlots[i].amount = potBipolar(pots[base[i] + 2]);
-        modSlots[i].on     = pots[base[i] + 3] > 0.5f;
-    }
 }
 
 VoiceContext Engine::makeContext(const std::shared_ptr<Wavetable> &t1,
@@ -40,13 +27,11 @@ VoiceContext Engine::makeContext(const std::shared_ptr<Wavetable> &t1,
 {
     VoiceContext c;
     c.pots = pots;
-    c.modSlots = modSlots;
     c.table1 = t1.get();
     c.table2 = t2.get();
     c.analog = &analog;
     c.modWheel = modWheel;
     c.aftertouch = aftertouch;
-    c.pitchBendNorm = pitchBendNorm;
     c.pitchBendSemis = pitchBendNorm * pots[TB_P_PB_RANGE];
     c.bpm = hostBpm;
     return c;

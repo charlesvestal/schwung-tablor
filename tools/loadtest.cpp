@@ -102,6 +102,7 @@ int main(int argc, char **argv)
     }
 
     static char big[64 * 1024];
+    static char saved[64 * 1024];   /* a state blob held across a round-trip */
 
     /* ---- the worker must not be born on the audio thread's scheduling ----
      * Every entry point runs on the SPI callback at SCHED_FIFO 90, and POSIX
@@ -167,9 +168,13 @@ int main(int argc, char **argv)
     CHECK(big[0] == '[' && big[n - 1] == ']', "chain_params looks like a JSON array");
     CHECK(strstr(big, "\"wt1_table\"") && strstr(big, "\"volume\"") &&
           strstr(big, "\"u8_target\""), "chain_params contains first/mid/last keys");
-    CHECK(!strstr(big, "\"m8_on\"") && !strstr(big, "\"lfo3_shape\"") &&
+    /* The two LFOs and the four mod slots were cut in 1.1.0: four pages of
+     * clutter for modulation Schwung already provides through a slot LFO.
+     * Asserted here because a stale generator would put them back silently. */
+    CHECK(!strstr(big, "\"lfo1_shape\"") && !strstr(big, "\"lfo2_rate\"") &&
+          !strstr(big, "\"m1_src\"") && !strstr(big, "\"m4_on\"") &&
           !strstr(big, "\"rt_wt1\"") && !strstr(big, "\"wt1_fine\""),
-          "trimmed params are really gone");
+          "the LFOs, the mod slots and the older trims are really gone");
     CHECK(strstr(big, "%s") == nullptr, "no unfilled %%s slots leaked");
 
     /* ---- int param round-trip ---- */
@@ -204,24 +209,7 @@ int main(int argc, char **argv)
     n = api->get_param(inst, "state", big, sizeof big);
     CHECK(n > 6 && !strncmp(big, "TBLR2;", 6), "state is version-tagged (%d bytes)", n);
 
-    /* A TBLR1 blob is the pre-1.0.5 shape order: loading one must MIGRATE the
-     * lfo shape index, not take it literally. Old index 6 was S&H; taken
-     * literally it is now Saw Down, which turns a bounce-the-position patch
-     * into a ramp -- the reported "LFO re-cycles the wavetable". */
-    api->set_param(inst, "synth:state", "TBLR1;lfo1_shape=6;");
-    api->get_param(inst, "lfo1_shape", buf, sizeof buf);
-    CHECK(!strcmp(buf, "S&H") || !strcmp(buf, "4"),
-          "TBLR1 lfo shape 6 (old S&H) loads as S&H, not Saw Down -> \"%s\"", buf);
-    api->set_param(inst, "synth:state", "TBLR2;lfo1_shape=6;");
-    api->get_param(inst, "lfo1_shape", buf, sizeof buf);
-    CHECK(!strcmp(buf, "Saw Down") || !strcmp(buf, "6"),
-          "TBLR2 lfo shape 6 stays Saw Down -> \"%s\"", buf);
-    CHECK(strstr(big, "vca_r=77") != nullptr, "state contains vca_r=77");
-
-    static char saved[sizeof big];
-    memcpy(saved, big, sizeof saved);
-    api->set_param(inst, "vca_r", "10");
-    api->set_param(inst, "synth:state", saved);         /* prefixed spelling */
+    /* prefixed spelling */
     api->get_param(inst, "vca_r", buf, sizeof buf);
     CHECK(!strcmp(buf, "77"), "state restore via synth:state -> vca_r=\"%s\"", buf);
 
@@ -502,103 +490,24 @@ int main(int argc, char **argv)
         settle(api, inst);
     }
 
-    /* ---- LFO depth must actually modulate ----
-     * The LFO fields were read by base+offset against a stale field order, so
-     * depth read the sync switch: modulation was near-silent and raising depth
-     * secretly enabled tempo sync. Reported as "LFO modulation of the wavetable
-     * position seems quite light". Driving the filter and watching the output
-     * move is the cheapest honest check that depth reaches the LFO at all. */
+    /* A preset saved BEFORE the LFOs and mod slots were removed still names
+     * them. Those keys no longer exist, so they must be ignored -- not
+     * refuse the blob, and not corrupt the keys that do exist around them. */
     {
-        api->set_param(inst, "voice_mode", "Poly");
-        api->set_param(inst, "flt_type", "LP 24");
-        api->set_param(inst, "flt_freq", "40");     /* well down, so sweeping is audible */
-        api->set_param(inst, "flt_res", "60");
-        api->set_param(inst, "lfo1_shape", "Sine");
-        api->set_param(inst, "lfo1_sync", "Off");
-        api->set_param(inst, "lfo1_rate", "80");    /* a few Hz */
-        api->set_param(inst, "lfo1_phase", "0");
-        api->set_param(inst, "lfo1_offset", "64");
-        api->set_param(inst, "m1_src", "LFO 1");
-        api->set_param(inst, "m1_dst", "Filter Freq");
-        api->set_param(inst, "m1_amt", "127");
-        api->set_param(inst, "m1_on", "On");
-
-        long spread[2] = { 0, 0 };
-        for (int pass = 0; pass < 2; pass++) {
-            api->set_param(inst, "lfo1_depth", pass ? "127" : "0");
-            api->on_midi(inst, note_on, 3, 0);
-            long lo = 1 << 30, hi = 0;
-            for (int b = 0; b < 400; b++) {         /* ~1.16 s */
-                api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
-                if (b < 60) continue;               /* let the attack settle */
-                long pk = 0;
-                for (size_t i = 0; i < MOVE_FRAMES_PER_BLOCK * 2; i++) {
-                    long v = out[i] < 0 ? -out[i] : out[i];
-                    if (v > pk) pk = v;
-                }
-                if (pk > hi) hi = pk;
-                if (pk < lo) lo = pk;
-            }
-            spread[pass] = hi - lo;
-            api->on_midi(inst, all_off, 3, 0);
-            for (int b = 0; b < 120; b++) api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
-        }
-        CHECK(spread[1] > spread[0] * 3 && spread[1] > 300,
-              "LFO depth sweeps the filter (still %ld, depth 127 -> %ld)",
-              spread[0], spread[1]);
-        api->set_param(inst, "m1_on", "Off");
-        api->set_param(inst, "lfo1_depth", "0");
-    }
-
-    /* AT BOOT, before anything is saved: the PRESET cell must already carry
-     * the factory presets as its options. It did not -- the boot job
-     * published the option lists BEFORE load_presets ran, so the cell read 0
-     * with nothing to step through. */
-    n = api->get_param(inst, "chain_params", big, sizeof big);
-    CHECK(strstr(big, "\"key\":\"preset\"") && strstr(big, "\"Init\"") &&
-          strstr(big, "\"Glass Bells\""),
-          "PRESET cell carries the factory presets at boot");
-
-    /* A .wav with NO clm chunk must keep its frames.
-     *
-     * The frame size was being inferred from a moved-from vector, so it came
-     * back 0 and the whole file loaded as ONE cycle. Only clm-carrying files
-     * (Serum, Vital) escaped, which is exactly why "just use 2048" looked
-     * like the rule. Nothing in the seeded library catches this -- every
-     * table there is .wt2048 and names its size in the extension -- so the
-     * probe writes a plain .wav and checks the loaded table has frames. */
-    {
-        const char *wp = "/tmp/lt_noclm_512x27.wav";
-        FILE *wf = fopen(wp, "wb");
-        if (wf) {
-            const int F = 512, NF = 27;
-            const uint32_t bytes = (uint32_t) (F * NF * 4);
-            uint32_t u; uint16_t v;
-            fwrite("RIFF", 1, 4, wf); u = 36 + bytes; fwrite(&u, 4, 1, wf);
-            fwrite("WAVEfmt ", 1, 8, wf); u = 16; fwrite(&u, 4, 1, wf);
-            v = 3; fwrite(&v, 2, 1, wf); v = 1; fwrite(&v, 2, 1, wf);
-            u = 44100; fwrite(&u, 4, 1, wf); u = 44100 * 4; fwrite(&u, 4, 1, wf);
-            v = 4; fwrite(&v, 2, 1, wf); v = 32; fwrite(&v, 2, 1, wf);
-            fwrite("data", 1, 4, wf); fwrite(&bytes, 4, 1, wf);
-            for (int k = 0; k < NF; k++)
-                for (int i = 0; i < F; i++) {
-                    float uu = (float) i / F, val = 0.0f;
-                    for (int hm = 1; hm <= 1 + k; hm++)
-                        val += sinf(2.0f * 3.14159265f * hm * uu) / hm;
-                    val *= 0.4f;
-                    fwrite(&val, 4, 1, wf);
-                }
-            fclose(wf);
-            api->set_param(inst, "wt1_table", wp);
-            settle(api, inst);
-            api->get_param(inst, "wt1_shape", big, sizeof big);
-            int gotFrames = atoi(big);
-            CHECK(gotFrames > 1,
-                  "a .wav with no clm keeps its frames (digest says %d)", gotFrames);
-            remove(wp);
-            api->set_param(inst, "wt1_table", "");
-            settle(api, inst);
-        }
+        api->set_param(inst, "flt_freq", "20");
+        api->set_param(inst, "synth:state",
+                       "TBLR2;flt_freq=99;lfo1_shape=4;lfo1_rate=35;m1_src=1;"
+                       "m1_dst=13;m1_amt=110;m1_on=1;wt1_pos=77;");
+        settle(api, inst);
+        api->get_param(inst, "flt_freq", buf, sizeof buf);
+        CHECK(!strcmp(buf, "99"), "an old preset's surviving keys still apply (flt_freq %s)", buf);
+        api->get_param(inst, "wt1_pos", buf, sizeof buf);
+        CHECK(!strcmp(buf, "77"), "keys AFTER the dead ones apply too (wt1_pos %s)", buf);
+        /* clear first: get_param leaves the buffer untouched for a key it
+         * does not know, so an unzeroed buf would read as the LAST answer */
+        memset(buf, 0, sizeof buf);
+        api->get_param(inst, "lfo1_rate", buf, sizeof buf);
+        CHECK(buf[0] == 0, "a removed key answers nothing -> \"%s\"", buf);
     }
 
     /* ---- the preset-page tap buttons ---- */

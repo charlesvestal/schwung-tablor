@@ -8,7 +8,7 @@ static double nowMs(){ struct timespec ts; clock_gettime(CLOCK_MONOTONIC,&ts);
 int main(){
     Engine e;
     /* worst realistic patch: both oscs on, unison 4, bend+formant, sub+noise,
-       filter resonant, all 3 LFOs (defaults are on) */
+       filter resonant */
     e.pots[TB_P_WT2_LEVEL]=100; e.pots[TB_P_WT1_UNI]=4; e.pots[TB_P_WT2_UNI]=4;
     e.pots[TB_P_WT1_DETUNE]=40; e.pots[TB_P_WT2_DETUNE]=40;
     e.pots[TB_P_WT1_BEND]=90;   e.pots[TB_P_WT2_FORMANT]=90;

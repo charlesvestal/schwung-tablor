@@ -14,7 +14,6 @@
 #include "../src/ported/filter.h"
 #include "../src/ported/adsr.h"
 #include "../src/ported/analog_tables.h"
-#include "../src/ported/lfo.h"
 #include "../src/ported/wt_oscillator.h"
 #include "../src/ported/wav.h"
 
@@ -163,118 +162,6 @@ static void testADSR()
     CHECK(l[63] > l[0] && l[63] < 0.05f, "VCA multiply follows early attack (%.4f)", l[63]);
 }
 
-static void testLFO()
-{
-    printf("== lfo ==\n");
-    LFO lfo;
-    lfo.setSampleRate(44100.0);
-
-    LFO::Parameters p;
-    p.waveShape = LFO::WaveShape::sine;
-    p.frequency = 2.0f;
-    p.depth = 1.0f;
-    lfo.setParameters(p);
-    lfo.reset();
-    lfo.noteOn(0.0f);
-
-    /* quarter period of 2 Hz = 0.125 s = 5512.5 samples -> sin ~ 1 */
-    lfo.process(5513);
-    CHECK(lfo.getOutput() > 0.99f, "sine peaks at quarter period (%.3f)", lfo.getOutput());
-    lfo.process(5512);
-    CHECK(std::fabs(lfo.getOutput()) < 0.01f, "sine zero at half period (%.3f)", lfo.getOutput());
-
-    /* sawUp ramps -1 -> +1 */
-    p.waveShape = LFO::WaveShape::sawUp;
-    lfo.setParameters(p);
-    lfo.reset(); lfo.noteOn(0.0f);
-    CHECK(std::fabs(lfo.getOutput() - (-1.0f)) < 0.01f, "sawUp starts at -1 (%.3f)", lfo.getOutput());
-    lfo.process(11025);   /* half period */
-    CHECK(std::fabs(lfo.getOutput()) < 0.01f, "sawUp mid at 0 (%.3f)", lfo.getOutput());
-
-    /* depth + offset + clamp */
-    p.waveShape = LFO::WaveShape::square;
-    p.depth = 0.5f; p.offset = 0.75f;
-    lfo.setParameters(p);
-    lfo.reset(); lfo.noteOn(0.0f);
-    CHECK(lfo.getOutput() == 1.0f, "clamped at +1 (0.75 + 0.5)");
-    CHECK(std::fabs(lfo.getOutputUnclamped() - 1.25f) < 1e-5f,
-          "unclamped 1.25 (%.3f)", lfo.getOutputUnclamped());
-
-    /* fade-in */
-    p.waveShape = LFO::WaveShape::square;
-    p.depth = 1.0f; p.offset = 0.0f; p.fade = 0.1f;
-    lfo.setParameters(p);
-    lfo.reset(); lfo.noteOn(0.0f);
-    lfo.process(2205);    /* half the fade */
-    float mid = std::fabs(lfo.getOutput());
-    CHECK(mid > 0.3f && mid < 0.7f, "fade halfway (%.2f)", mid);
-
-    /* delay holds output at 0 */
-    p.fade = 0.0f; p.delay = 0.1f;
-    lfo.setParameters(p);
-    lfo.reset(); lfo.noteOn(0.0f);
-    lfo.process(2205);
-    CHECK(lfo.getOutput() == 0.0f, "silent during delay");
-
-    /* S&H deterministic + bounded */
-    p.delay = 0.0f;
-    p.waveShape = LFO::WaveShape::sampleAndHold;
-    LFO a, b;
-    a.setSampleRate(44100.0); b.setSampleRate(44100.0);
-    a.setParameters(p); b.setParameters(p);
-    a.noteOn(3.0f); b.noteOn(3.0f);
-    bool same = true, bounded = true;
-    for (int i = 0; i < 50; i++) {
-        float va = a.process(500), vb = b.process(500);
-        same &= (va == vb);
-        bounded &= (va >= -1.0f && va <= 1.0f);
-    }
-    CHECK(same && bounded, "S&H deterministic and bounded");
-}
-
-/* Sample & Hold must STEP, and hold. It was reported as sounding like a saw;
- * the cause turned out to be the LFO param wiring in voice.h (depth read the
- * sync switch), but the shape itself is worth pinning so a future edit to the
- * phase handling cannot quietly turn it into a ramp -- which is exactly what
- * the neighbouring `noise` shape is, since that one lerps between its random
- * points. */
-static void testLfoSampleAndHold()
-{
-    printf("== lfo sample & hold ==\n");
-    const int PERIOD = 22050;              /* 2 Hz at 44100 */
-    LFO lfo;
-    lfo.setSampleRate(44100.0);
-    LFO::Parameters p;
-    p.waveShape = LFO::WaveShape::sampleAndHold;
-    p.frequency = 2.0f;
-    p.depth = 1.0f;
-    lfo.setParameters(p);
-    lfo.reset();
-    lfo.noteOn(0.0f);
-
-    /* Sample 8 times inside ONE period: a hold means all 8 are identical. */
-    float first = lfo.getOutput(), maxDev = 0.0f;
-    for (int i = 0; i < 8; i++) {
-        lfo.process(PERIOD / 16);
-        maxDev = std::max(maxDev, std::fabs(lfo.getOutput() - first));
-    }
-    CHECK(maxDev < 0.0001f, "S&H holds its value within a period (drift %.5f)", maxDev);
-
-    /* Across several periods it must actually take different values, and jump
-     * rather than ramp: a saw would creep by ~2/period in one direction. */
-    float vals[6];
-    for (int i = 0; i < 6; i++) { lfo.process(PERIOD); vals[i] = lfo.getOutput(); }
-    int distinct = 0, monotonic = 0;
-    for (int i = 0; i < 6; i++) {
-        bool seen = false;
-        for (int j = 0; j < i; j++) if (std::fabs(vals[i] - vals[j]) < 0.0001f) seen = true;
-        if (!seen) distinct++;
-        if (i && vals[i] > vals[i - 1]) monotonic++;
-    }
-    CHECK(distinct >= 4, "S&H picks fresh values each period (%d distinct of 6)", distinct);
-    CHECK(monotonic < 5, "S&H is not a ramp (%d of 5 steps rose)", monotonic);
-}
-
 /* Short and odd-length wavetables must PLAY, and play at the right pitch.
  *
  * Reported as "shorter wavetable lengths aren't playing" and "the playback is
@@ -356,52 +243,6 @@ static void testShortWavetables()
         float hz = (float) crossings * 44100.0f / 8192.0f;
         CHECK(hz > 420.0f && hz < 460.0f,
               "it sounds at the note it was asked for (%.0f Hz for A4)", hz);
-    }
-}
-
-/* Each LFO option must (a) sit at the index of the host glyph that depicts it
- * and (b) actually produce that waveform. A device reported Saw Down drawing a
- * square, Square drawing S&H and S&H drawing a saw down -- each the glyph
- * belonging to its INDEX, because some hosts pick the picture by index rather
- * than by name. The order is now the host's id order, which means the engine
- * can no longer derive the waveform from the index; this checks both halves so
- * they cannot drift apart again. */
-static void testLfoShapeOrder()
-{
-    printf("== lfo shape order ==\n");
-    /* index -> what the host draws there (viz_draw.mjs lfoShapeSample) */
-    struct { int index; const char *name; } expect[] = {
-        { 0, "Sine" }, { 1, "Triangle" }, { 2, "Saw Up" }, { 3, "Square" },
-        { 4, "S&H" },  { 5, "Pulse" },    { 6, "Saw Down" }, { 7, "Noise" },
-    };
-
-    const int PERIOD = 22050;                    /* 2 Hz */
-    for (auto &e : expect) {
-        LFO lfo;
-        lfo.setSampleRate(44100.0);
-        LFO::Parameters p;
-        /* the same table voice.h uses */
-        static const LFO::WaveShape k[8] = {
-            LFO::WaveShape::sine, LFO::WaveShape::triangle, LFO::WaveShape::sawUp,
-            LFO::WaveShape::square, LFO::WaveShape::sampleAndHold,
-            LFO::WaveShape::squarePos, LFO::WaveShape::sawDown, LFO::WaveShape::noise,
-        };
-        p.waveShape = k[e.index];
-        p.frequency = 2.0f; p.depth = 1.0f;
-        lfo.setParameters(p); lfo.reset(); lfo.noteOn(0.0f);
-
-        /* sample a full cycle */
-        float v[8];
-        for (int i = 0; i < 8; i++) { lfo.process(PERIOD / 8); v[i] = lfo.getOutput(); }
-
-        bool ok = true;
-        if (!strcmp(e.name, "Saw Up"))        ok = v[6] > v[1];       /* rises */
-        else if (!strcmp(e.name, "Saw Down")) ok = v[6] < v[1];       /* falls */
-        else if (!strcmp(e.name, "Square"))   ok = v[1] > 0.9f && v[6] < -0.9f;
-        else if (!strcmp(e.name, "Pulse"))    ok = v[1] > 0.9f && v[6] > -0.01f && v[6] < 0.01f;
-        else if (!strcmp(e.name, "Triangle")) ok = v[1] > 0.0f && v[5] < 0.0f;
-        else if (!strcmp(e.name, "Sine"))     ok = v[1] > 0.5f && v[5] < -0.5f;
-        CHECK(ok, "index %d is %s, and sounds like it", e.index, e.name);
     }
 }
 
@@ -682,9 +523,6 @@ int main()
 {
     testFilter();
     testADSR();
-    testLFO();
-    testLfoSampleAndHold();
-    testLfoShapeOrder();
     testShortWavetables();
     testShortFrameTables();
     testWavFormats();

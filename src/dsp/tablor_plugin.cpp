@@ -617,24 +617,6 @@ static void reset_to_defaults(tablor_instance *inst)
             inst->params()[i] = tb_params[i].def;
     set_table_path(inst, 0, "");
     set_table_path(inst, 1, "");
-    inst->engine.syncModSlots();
-}
-
-/* Old-order LFO shape -> new order (v1.0.5 made the option index equal the
- * host's glyph id). Old: Sine Tri SawUp SawDown Square Square+ S&H Noise.
- * New:  Sine Tri SawUp Square S&H Pulse SawDown Noise.
- *
- * Without this, a patch saved before the reorder plays different LFO shapes
- * than it was saved with -- reported as an S&H-on-position patch suddenly
- * "re-cycling" the wavetable, which is exactly old-S&H's index landing on
- * Saw Down. Caveat, recorded honestly: a blob saved as TBLR1 by v1.0.5 or
- * v1.0.6 (the two releases between the reorder and this tag) already stores
- * NEW indices and gets remapped wrongly once; re-saving fixes it, and those
- * releases were current for two days. */
-static int tb_migrate_lfo_shape_v1(int old)
-{
-    static const int k[8] = { 0, 1, 2, 6, 3, 5, 4, 7 };
-    return (old >= 0 && old < 8) ? k[old] : old;
 }
 
 /* Version-tagged blob: "TBLR1;…" or "TBLR2;…". Anything without a known
@@ -657,10 +639,6 @@ static void apply_state_blob(tablor_instance *inst, const char *val)
             memcpy(vbuf, eq + 1, vl); vbuf[vl] = 0;
             int idx = param_index(kbuf);
             if (idx >= 0) {
-                if (v1 && (idx == TB_P_LFO1_SHAPE || idx == TB_P_LFO2_SHAPE)) {
-                    snprintf(vbuf, sizeof vbuf, "%d",
-                             tb_migrate_lfo_shape_v1(atoi(vbuf)));
-                }
                 if (tb_params[idx].type == TB_PATH)
                     set_table_path(inst, tb_path_slot(idx), vbuf);
                 else
@@ -670,7 +648,6 @@ static void apply_state_blob(tablor_instance *inst, const char *val)
         }
         p = (*semi) ? semi + 1 : semi;
     }
-    inst->engine.syncModSlots();
 }
 
 /* ------------------------------------------------------------------ */
@@ -694,8 +671,6 @@ static void user_macro_apply(tablor_instance *inst, int i)
     float v01 = inst->params()[tb_user_pots[i]] / 127.0f;
     float span = p->max - p->min;
     inst->params()[t] = p->min + (float) (int) (v01 * span + 0.5f);
-    if (p->key[0] == 'm' && p->key[1] >= '1' && p->key[1] <= '8')
-        inst->engine.syncModSlots();
 }
 
 static void user_macro_backsync(tablor_instance *inst, int i)
@@ -909,7 +884,6 @@ static void tb_set_param(void *instance, const char *key, const char *val)
 
     /* keep the engine's mod-slot cache in step (cheap: 32 reads) */
     if (k[0] == 'm' && k[1] >= '1' && k[1] <= '8')
-        inst->engine.syncModSlots();
 
     /* user macros */
     for (int i = 0; i < TB_USER_MACROS; i++) {

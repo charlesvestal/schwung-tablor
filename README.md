@@ -9,7 +9,7 @@ else stays out of the way.
 
 ![Main page: both wavetables on knobs 1-2, position, level and tune](docs/img/move-main.png)
 
-13 pages, 95 controls, no menus inside menus. The graphics are Schwung's own
+10 pages, 65 controls, no menus inside menus. The graphics are Schwung's own
 — declared, not drawn by us — so the filter curve and both envelopes are the
 real values:
 
@@ -25,8 +25,9 @@ real values:
   (white / pink)
 - **Multimode filter** — LP / HP / BP / Notch, 12 or 24 dB/oct, with its own
   ADSR and key/velocity tracking
-- **Two envelopes** (amp + filter), **2 LFOs** (tempo-syncable, 8 shapes),
-  **4-slot mod matrix**
+- **Two envelopes** (amp + filter) with key and velocity tracking. For
+  movement, point one of Schwung's own slot LFOs at any Tablor knob — that
+  is what the host already does well, and it saves four pages of surface
 - **8 user macros** — map any knob to anything, on the device; assignments
   save with the patch and can be automated
 - **8 voices** polyphonic, or mono with glide/legato
@@ -71,8 +72,8 @@ and still save with the patch; they simply have no cell on the hardware.
 
 Open `move.local:7700/remote-ui` and Tablor lays itself out the way the plugin
 it came from does: both oscillators across the top with their wavetable
-displays, then noise, sub, filter and the amp envelope, the LFOs and mod
-matrix below, macros and global last. Every control is live in both
+displays, then noise, sub, filter and the amp envelope, with macros and
+global below. Every control is live in both
 directions — turn a knob here and the Move follows, turn one on the Move and
 this follows.
 
@@ -82,9 +83,9 @@ The waterfall is your actual wavetable, not a stand-in. The module publishes a
 digest of the table it has loaded, and the panel also reads the file itself
 over the manager's file API and decodes it, so the drawing follows whichever
 table is loaded — changed from the browser here, or from the pot on the Move.
-The bright line is the frame the Pos knob is sitting on. The ADSR and LFO
-curves are computed from the live parameter values, so they are readouts
-rather than decoration.
+The bright line is the frame the Pos knob is sitting on. The ADSR curves are
+computed from the live parameter values, so they are readouts rather than
+decoration.
 
 Each oscillator's title bar carries the wavetable picker and a pack filter,
 which is where the file browsing lives now that it is off the hardware pages.
@@ -107,7 +108,7 @@ Movy config, the on-device editor and the web panel are all generated from it.
 
 Tablor is a from-scratch Schwung port of **[Wavetable](https://github.com/FigBug/Wavetable)**
 by **Roland Rabien (FigBug)** — the sound engine (wavetable oscillators,
-band-limited mip tables, analog-style envelopes, LFOs, filter behavior) is
+band-limited mip tables, analog-style envelopes, filter behavior) is
 ported from Wavetable and its DSP library **[gin](https://github.com/FigBug/Gin)**,
 both BSD-3-Clause. The JUCE dependency was removed entirely; the DSP was
 re-implemented as plain C++ against Schwung's plugin API, validated against

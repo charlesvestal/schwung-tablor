@@ -15,7 +15,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.0.14"
+VERSION = "1.1.0"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
@@ -24,38 +24,16 @@ FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12"
 SUB_WAVES    = ["Sine", "Triangle", "Saw", "Square", "Pulse", "Pulse Tr"]
 NOISE_TYPES  = ["White", "Pink"]
 # Option NAMES are what the host draws a graphic from: Schwung matches them
-# against a known set (viz_draw.mjs lfoShapeIdOf) and falls back to a SINE for
+# against a known set (viz_draw.mjs) and falls back to a SINE for
 # anything it does not recognise. "Square+" -- our unipolar square -- was not
 # in that set, so it drew a sine, which is a different waveform entirely.
 # "Pulse" is recognised, and a 50% unipolar square has exactly the silhouette
 # of the square glyph it selects. Renaming is safe for saved sounds: presets
 # store the INDEX, and the order here is unchanged.
-# Order matters, and not for us: some hosts draw the shape GLYPH from the
-# option INDEX rather than the name, so the index has to BE Schwung's shape id
-# (viz_draw.mjs lfoShapeSample): 0 sine, 1 triangle, 2 saw up, 3 square,
-# 4 S&H, 6 saw down, 7 noise. Reported from a device as Saw Down drawing a
-# square, Square drawing S&H and S&H drawing a saw down -- each one exactly the
-# glyph belonging to its index. Id 5 has no case and falls through to a sine,
-# so the least-reached shape sits there.
-#
-# A name-based host is unaffected: it resolves by text and ignores the order.
-# The DSP no longer infers the waveform from this position either -- see
-# lfoWaveShape() in voice.h.
-LFO_SHAPES   = ["Sine", "Triangle", "Saw Up", "Square", "S&H", "Pulse", "Saw Down", "Noise"]
-LFO_BEATS    = ["1/32", "1/16T", "1/16", "1/8T", "1/16.", "1/8", "1/4T", "1/8.",
-                "1/4", "1/2T", "1/4.", "1/2", "1/1T", "1/2.", "1/1", "2/1"]
 ONOFF        = ["Off", "On"]
 RETRIG       = ["Free", "Retrig"]
 VOICE_MODES  = ["Poly", "Mono"]
 GLIDE_MODES  = ["Off", "Glissando", "Portamento"]
-
-MOD_SRC = ["None", "LFO 1", "LFO 2", "Filter EG", "VCA EG",
-           "Velocity", "Note", "Mod Wheel", "Aftertouch", "Pitch Bend", "Random"]
-MOD_DST = ["None",
-           "WT1 Pos", "WT2 Pos", "WT1 Level", "WT2 Level", "WT1 Tune", "WT2 Tune",
-           "WT1 Bend", "WT2 Bend", "WT1 Formant", "WT2 Formant", "WT1 Pan", "WT2 Pan",
-           "Filter Freq", "Filter Res", "Sub Level", "Noise Level", "Amp",
-           "LFO1 Rate", "LFO2 Rate"]
 
 # Wavetable selection is a DYNAMIC ENUM: the options are whatever the scanner
 # finds, served live from get_param("chain_params"). It has to be an enum —
@@ -89,13 +67,18 @@ def enum(key, short, full, options, default=0, **kw):
     return d
 
 def hint(p, **kw):
-    """Attach movy-only render hints (env/lfo/filter/knobAcceleration…)."""
+    """Attach movy-only render hints (env/filter/knobAcceleration…)."""
     q = dict(p); q["_movy"] = kw; return q
 
 # ---------------------------------------------------------------- the surface
 # Trimmed 2026-08-16 per Gus: no fine, no retrig anywhere, no sub/noise pan,
-# no filter routing switches, 4 mod slots, 2 LFOs. Behaviors hardcode to the
-# old defaults in the DSP.
+# no filter routing switches. Behaviors hardcode to the old defaults in the DSP.
+#
+# Trimmed again 2026-09-02: the two LFOs and the four mod slots are gone. Four
+# pages of clutter for modulation Schwung already provides -- a slot LFO can
+# target any Tablor parameter from the slot settings, which is where a user
+# reaches for it first. Velocity and key tracking stay: they are envelope
+# controls, not a matrix.
 def osc(n):
     return dict(
         table  = wtfile(f"wt{n}_table", f"WT{n}", f"WT{n}"),
@@ -150,25 +133,6 @@ FEG = dict(
     s = pot("flt_s", "FSUS", "Flt Sustain", 102),
     r = pot("flt_r", "FREL", "Flt Release", 64),
 )
-def lfo(n):
-    return dict(
-        shape = hint(enum(f"lfo{n}_shape", f"SHP{n}", f"LFO{n} Shape", LFO_SHAPES, 0), lfo="shape"),
-        rate  = hint(pot(f"lfo{n}_rate",  f"RAT{n}", f"LFO{n} Rate", 64), lfo="rate"),
-        sync  = enum(f"lfo{n}_sync",  f"SYN{n}", f"LFO{n} Sync", ONOFF, 0),
-        beat  = enum(f"lfo{n}_beat",  f"BEA{n}", f"LFO{n} Beat", LFO_BEATS, 8),
-        depth = hint(pot(f"lfo{n}_depth", f"DEP{n}", f"LFO{n} Depth", 127), lfo="depth"),
-        phase = hint(pot(f"lfo{n}_phase", f"PHA{n}", f"LFO{n} Phase", 0), lfo="phase"),
-        offset= pot(f"lfo{n}_offset", f"OFF{n}", f"LFO{n} Offset", 64),
-    )
-L1, L2 = lfo(1), lfo(2)
-
-def mod(n):
-    return [enum(f"m{n}_src", f"SRC{n}", f"Mod{n} Source", MOD_SRC, 0, automatable=False),
-            enum(f"m{n}_dst", f"DST{n}", f"Mod{n} Dest",   MOD_DST, 0, automatable=False),
-            pot (f"m{n}_amt", f"AMT{n}", f"Mod{n} Amount", 64) | {"automatable": False},
-            enum(f"m{n}_on",  f"ON{n}",  f"Mod{n} On",     ONOFF, 0, automatable=False)]
-MODS = [mod(n) for n in range(1, 5)]
-
 # Preset names come from the factory bank + 8 fixed user slots, so the picker
 # is an ordinary static enum that works in Movy, Tablor's editor AND the web
 # panel. Save writes the current sound into the chosen user slot.
@@ -237,15 +201,6 @@ BANKS = [
             FEG["a"], FEG["d"], FEG["s"], FEG["r"]),
         row(VCA["vel"], FILTER["key"], FILTER["vel"]),
     ]),
-    # shape/rate/depth/phase = the lfo viz group -> exactly the first row of 4
-    ("LFO", False, [
-        row(*[L1[k] for k in ("shape", "rate", "depth", "phase", "sync", "beat", "offset")]),
-        row(*[L2[k] for k in ("shape", "rate", "depth", "phase", "sync", "beat", "offset")]),
-    ]),
-    ("Mod", False, [
-        row(*(MODS[0] + MODS[1])),
-        row(*(MODS[2] + MODS[3])),
-    ]),
     ("Global", True, [
         row(GLOBAL["mode"], GLOBAL["voices"], GLOBAL["glide"], GLOBAL["gmode"],
             GLOBAL["legato"], GLOBAL["pb"], GLOBAL["vol"]),
@@ -313,8 +268,6 @@ MOVY_PAGE_NAMES = {
     ("Osc", 0): "Osc",    ("Osc", 1): "Unison",  ("Osc", 2): "Shape",
     ("Filter", 0): "Filter",
     ("Env", 0): "Env", ("Env", 1): "Env+",
-    ("LFO", 0): "LFO 1",  ("LFO", 1): "LFO 2",
-    ("Mod", 0): "Mod 1-2", ("Mod", 1): "Mod 3-4",
     ("Global", 0): "Global",
     ("User", 0): "User",  ("UMap", 0): "U.Map",
 }
@@ -357,16 +310,7 @@ VIZ = {
     "noise_level": {"kind": "fader"},
     "volume": {"kind": "fader"},
     "legato": {"kind": "switch"},
-    "m1_on": {"kind": "switch"}, "m2_on": {"kind": "switch"},
-    "m3_on": {"kind": "switch"}, "m4_on": {"kind": "switch"},
 }
-for n in (1, 2):
-    VIZ[f"lfo{n}_shape"] = {"group": f"lfo{n}", "role": "shape"}
-    VIZ[f"lfo{n}_rate"]  = {"group": f"lfo{n}", "role": "rate"}
-    VIZ[f"lfo{n}_depth"] = {"group": f"lfo{n}", "role": "depth"}
-    VIZ[f"lfo{n}_phase"] = {"group": f"lfo{n}", "role": "phase"}
-    VIZ[f"lfo{n}_sync"]  = {"kind": "switch"}
-
 def chain_param(p):
     if p["type"] == "file":
         d = {"key": p["key"], "name": p["full"], "type": "filepath",
@@ -419,10 +363,6 @@ PAGE_MAP = [  # (bank name, row index, page title). Section = bank name.
     ("Filter", 0, "FILTER"),
     ("Env",    0, "ENV"),
     ("Env",    1, "ENV+"),
-    ("LFO",    0, "LFO 1"),
-    ("LFO",    1, "LFO 2"),
-    ("Mod",    0, "MOD 1-2"),
-    ("Mod",    1, "MOD 3-4"),
     ("Global", 0, "GLOBAL"),
     ("User",   0, "USER"),
     ("UMap",   0, "U.MAP"),
@@ -590,7 +530,7 @@ module_json = {
     "abbrev": "TBL",
     "version": VERSION,
     "description": "2-oscillator wavetable synth - 8-voice poly, sub, noise, "
-                   "multimode filter, 3 LFOs, mod matrix. Serum/Vital/Ableton "
+                   "multimode filter, 8 macros. Serum/Vital/Ableton "
                    "wavetables via Move Manager.",
     "author": "athousanddetails; after Wavetable (Roland Rabien / FigBug, BSD-3)",
     "dsp": "dsp.so",
