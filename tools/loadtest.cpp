@@ -583,8 +583,22 @@ int main(int argc, char **argv)
 
         /* Drive the REAL path: clear the version stamp and boot a second
          * instance. That exercises the gate as well as the move, and needs no
-         * test-only symbol exported from the shipping module. */
-        ::remove("/data/UserData/schwung/presets/tablor/.installed");
+         * test-only symbol exported from the shipping module.
+         *
+         * The stamp is SAVED and put back afterwards. Leaving it rewritten is
+         * not harmless: the second instance stamps the version of the .so
+         * under test against whatever factory.tbl is already installed, so a
+         * later deploy of that version finds the stamp already matching and
+         * skips seeding. That is exactly how a new factory preset went
+         * missing -- the test had told the device it was already done. */
+        const char *stampPath = "/data/UserData/schwung/presets/tablor/.installed";
+        char stampWas[64] = {};
+        bool hadStamp = false;
+        if (FILE *sf = fopen(stampPath, "r")) {
+            hadStamp = fgets(stampWas, sizeof stampWas, sf) != nullptr;
+            fclose(sf);
+        }
+        ::remove(stampPath);
         void *inst2 = api->create_instance(".", nullptr);
         CHECK(inst2 != nullptr, "a second instance boots for the migration test");
         if (inst2) {
@@ -605,10 +619,125 @@ int main(int argc, char **argv)
         CHECK(gone("Neu Bass.tblr") && inStore("Neu Bass 2.json") && inStore("Neu Bass.json"),
               "a name owned by another sound takes the next free one");
 
+        /* put the device back exactly as we found it */
+        if (hadStamp) {
+            if (FILE *sf = fopen(stampPath, "w")) { fputs(stampWas, sf); fclose(sf); }
+        } else {
+            ::remove(stampPath);
+        }
+
         char rm[512];
         snprintf(rm, sizeof rm, "%s/LT Move.json", store);   ::remove(rm);
         snprintf(rm, sizeof rm, "%s/LT Dup.json", store);    ::remove(rm);
         snprintf(rm, sizeof rm, "%s/Neu Bass 2.json", store); ::remove(rm);
+    }
+
+    /* ---- a spare envelope must actually move its destination ----
+     *
+     * Asked for after the mod matrix went: an envelope on WT Position is how
+     * a wavetable reads as a struck instrument -- bright at the attack,
+     * gentler as it decays. An LFO cannot do that, it repeats. So the check
+     * is the musical one: with the envelope pointed at position and decaying,
+     * the tone must get DARKER over the note, and must not when the amount is
+     * centred.
+     */
+    {
+        api->set_param(inst, "voice_mode", "Poly");
+        api->set_param(inst, "wt1_select", "0");
+        api->set_param(inst, "wt1_pos", "0");
+        api->set_param(inst, "wt1_level", "110");
+        api->set_param(inst, "wt2_level", "0");
+        api->set_param(inst, "flt_freq", "127");
+        api->set_param(inst, "vca_a", "0");
+        api->set_param(inst, "vca_s", "127");
+        api->set_param(inst, "vca_r", "20");
+        /* a percussive shape: full at the attack, gone by the end */
+        api->set_param(inst, "me1_a", "0");
+        api->set_param(inst, "me1_d", "75");   /* ~0.2 s: fallen well before the late window */
+        api->set_param(inst, "me1_s", "0");
+        api->set_param(inst, "me1_r", "40");
+        api->set_param(inst, "me1_dst", "WT1 Pos");
+
+        /* Render the SAME note twice -- envelope full, then centred -- and
+         * compare block by block. Position modulation shows as the two runs
+         * diverging while the envelope is up and converging once it has
+         * fallen to a sustain of zero, which is exactly the "full at the
+         * attack, gentle after" shape that was asked for.
+         *
+         * Measured this way rather than by counting zero crossings: with a
+         * held note that proxy drifts on its own, and reported the same 3.6
+         * whether the modulation was on or off. */
+        const int kBlocks = 200;
+        static double rms[2][kBlocks];
+        for (int pass = 0; pass < 2; pass++) {
+            api->set_param(inst, "me1_amt", pass ? "127" : "64");
+            api->on_midi(inst, note_on, 3, 0);
+            for (int b = 0; b < kBlocks; b++) {
+                api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
+                double e = 0;
+                for (size_t i = 0; i < MOVE_FRAMES_PER_BLOCK; i++) {
+                    double v = out[i * 2] / 32768.0;
+                    e += v * v;
+                }
+                rms[pass][b] = sqrt(e / MOVE_FRAMES_PER_BLOCK);
+            }
+            api->on_midi(inst, all_off, 3, 0);
+            for (int b = 0; b < 140; b++) api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
+        }
+        auto diverge = [&](int lo, int hi) {
+            double d = 0, ref = 0;
+            for (int b = lo; b < hi; b++) {
+                d += fabs(rms[1][b] - rms[0][b]);
+                ref += rms[0][b];
+            }
+            return ref > 1e-9 ? d / ref : 0.0;
+        };
+        const double early = diverge(3, 25);     /* envelope up */
+        const double late  = diverge(150, 200);  /* long after it fell to 0 */
+        printf("      [measured] divergence early %.3f, late %.3f\n", early, late);
+        CHECK(early > 0.10,
+              "an envelope on WT Pos changes the sound while it is up (%.3f)", early);
+        CHECK(late < early * 0.5,
+              "and the sound returns as it falls to zero (%.3f vs %.3f)", late, early);
+
+        /* and it must reach a different destination when pointed at one */
+        api->set_param(inst, "me1_dst", "Filter Freq");
+        api->set_param(inst, "me1_amt", "127");
+        api->set_param(inst, "flt_freq", "30");
+        api->set_param(inst, "me1_s", "127");        /* hold it open */
+        api->on_midi(inst, note_on, 3, 0);
+        long openPk = 0;
+        for (int b = 0; b < 160; b++) {
+            api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
+            if (b < 40) continue;
+            for (size_t i = 0; i < MOVE_FRAMES_PER_BLOCK * 2; i++) {
+                long v = out[i] < 0 ? -out[i] : out[i];
+                if (v > openPk) openPk = v;
+            }
+        }
+        api->on_midi(inst, all_off, 3, 0);
+        for (int b = 0; b < 120; b++) api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
+
+        api->set_param(inst, "me1_amt", "64");       /* same patch, no modulation */
+        api->on_midi(inst, note_on, 3, 0);
+        long shutPk = 0;
+        for (int b = 0; b < 160; b++) {
+            api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
+            if (b < 40) continue;
+            for (size_t i = 0; i < MOVE_FRAMES_PER_BLOCK * 2; i++) {
+                long v = out[i] < 0 ? -out[i] : out[i];
+                if (v > shutPk) shutPk = v;
+            }
+        }
+        api->on_midi(inst, all_off, 3, 0);
+        for (int b = 0; b < 120; b++) api->render_block(inst, out, MOVE_FRAMES_PER_BLOCK);
+        CHECK(openPk > shutPk * 2,
+              "the same envelope opens the filter when pointed there (%ld vs %ld)",
+              openPk, shutPk);
+
+        api->set_param(inst, "me1_dst", "None");
+        api->set_param(inst, "me1_amt", "64");
+        api->set_param(inst, "flt_freq", "127");
     }
 
     /* ---- presets are Schwung's: the module seeds its factory sounds into

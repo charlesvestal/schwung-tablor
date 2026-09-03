@@ -15,7 +15,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.2.2"
+VERSION = "1.3.0"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
@@ -133,6 +133,35 @@ FEG = dict(
     s = pot("flt_s", "FSUS", "Flt Sustain", 102),
     r = pot("flt_r", "FREL", "Flt Release", 64),
 )
+# Two spare envelopes, each routed at one destination.
+#
+# Asked for after the mod matrix went: an envelope sweeping WT Position is how
+# you get a struck timbre -- full at the attack, gentle as it decays, which is
+# what makes a wavetable read as an electric piano. Schwung's slot LFOs cover
+# modulation in general, but an LFO cannot do that: it repeats, and the point
+# of this shape is that it does not.
+#
+# Deliberately not a matrix again: two sources, one destination each, one
+# amount each. That is four cells on a page rather than sixteen, and it is the
+# case people actually reached for.
+MOD_DST = ["None",
+           "WT1 Pos", "WT2 Pos", "WT1 Level", "WT2 Level", "WT1 Tune", "WT2 Tune",
+           "WT1 Bend", "WT2 Bend", "WT1 Formant", "WT2 Formant", "WT1 Pan", "WT2 Pan",
+           "Filter Freq", "Filter Res", "Sub Level", "Noise Level", "Amp"]
+
+def modenv(n):
+    return dict(
+        a   = pot(f"me{n}_a", f"E{n}ATK", f"Env{n} Attack", 0),
+        d   = pot(f"me{n}_d", f"E{n}DEC", f"Env{n} Decay", 64),
+        s   = pot(f"me{n}_s", f"E{n}SUS", f"Env{n} Sustain", 0),
+        r   = pot(f"me{n}_r", f"E{n}REL", f"Env{n} Release", 64),
+        # Amount is BIPOLAR (64 = off): the useful direction is often downward
+        # -- position falling back as the note decays -- so it has to invert.
+        dst = enum(f"me{n}_dst", f"E{n}DST", f"Env{n} Dest", MOD_DST, 0),
+        amt = pot(f"me{n}_amt", f"E{n}AMT", f"Env{n} Amount", 64),
+    )
+ME1, ME2 = modenv(1), modenv(2)
+
 # Presets are Schwung's, not ours. Its browser (shadow_ui_presets.mjs) is
 # reached from the slot, works for every module, auditions as you scroll, and
 # stores under /data/UserData/schwung/presets/<module-id>/ from the module's
@@ -181,7 +210,13 @@ BANKS = [
     ("Env", False, [
         row(VCA["a"], VCA["d"], VCA["s"], VCA["r"],
             FEG["a"], FEG["d"], FEG["s"], FEG["r"]),
-        row(VCA["vel"], FILTER["key"], FILTER["vel"]),
+        # the two spare envelopes: each foursome owns its own 4-cell line so
+        # both draw as a curve, the way the amp and filter pair do above
+        row(ME1["a"], ME1["d"], ME1["s"], ME1["r"],
+            ME2["a"], ME2["d"], ME2["s"], ME2["r"]),
+        # tracking, then where each spare envelope goes and how far
+        row(VCA["vel"], FILTER["key"], FILTER["vel"],
+            ME1["dst"], ME1["amt"], ME2["dst"], ME2["amt"]),
     ]),
     ("Global", True, [
         row(GLOBAL["mode"], GLOBAL["voices"], GLOBAL["glide"], GLOBAL["gmode"],
@@ -238,7 +273,7 @@ def movy_slot(p):
 MOVY_PAGE_NAMES = {
     ("Osc", 0): "Osc",    ("Osc", 1): "Unison",  ("Osc", 2): "Shape",
     ("Filter", 0): "Filter",
-    ("Env", 0): "Env", ("Env", 1): "Env+",
+    ("Env", 0): "Env 1", ("Env", 1): "Env 2", ("Env", 2): "Env Mod",
     ("Global", 0): "Global",
 }
 
@@ -270,6 +305,14 @@ VIZ = {
     "flt_d": {"group": "fenv", "role": "decay"},
     "flt_s": {"group": "fenv", "role": "sustain"},
     "flt_r": {"group": "fenv", "role": "release"},
+    "me1_a": {"group": "menv1", "role": "attack"},
+    "me1_d": {"group": "menv1", "role": "decay"},
+    "me1_s": {"group": "menv1", "role": "sustain"},
+    "me1_r": {"group": "menv1", "role": "release"},
+    "me2_a": {"group": "menv2", "role": "attack"},
+    "me2_d": {"group": "menv2", "role": "decay"},
+    "me2_s": {"group": "menv2", "role": "sustain"},
+    "me2_r": {"group": "menv2", "role": "release"},
     "flt_freq": {"group": "flt", "role": "cutoff"},
     "flt_res":  {"group": "flt", "role": "resonance"},
     "flt_type": {"group": "flt", "role": "mode"},
@@ -319,8 +362,9 @@ PAGE_MAP = [  # (bank name, row index, page title). Section = bank name.
     ("Osc",    1, "UNISON"),
     ("Osc",    2, "SHAPE"),
     ("Filter", 0, "FILTER"),
-    ("Env",    0, "ENV"),
-    ("Env",    1, "ENV+"),
+    ("Env",    0, "ENV 1"),
+    ("Env",    1, "ENV 2"),
+    ("Env",    2, "ENV MOD"),
     ("Global", 0, "GLOBAL"),
 ]
 
@@ -475,7 +519,7 @@ module_json = {
     "abbrev": "TBL",
     "version": VERSION,
     "description": "2-oscillator wavetable synth - 8-voice poly, sub, noise, "
-                   "multimode filter, two envelopes. Serum/Vital/Ableton "
+                   "multimode filter, four envelopes (two routable). Serum/Vital/Ableton "
                    "wavetables via Move Manager.",
     "author": "athousanddetails; after Wavetable (Roland Rabien / FigBug, BSD-3)",
     "dsp": "dsp.so",

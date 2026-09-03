@@ -2,7 +2,7 @@
   "_comment": "Proposed entry for charlesvestal/schwung module-catalog.json \u2014 submit as a PR after Gus validates the release.",
   "id": "tablor",
   "name": "Tablor",
-  "description": "2-osc wavetable synth - 8-voice poly, sub, noise, multimode filter, two envelopes. Serum/Vital/Ableton wavetables via Move Manager.",
+  "description": "2-osc wavetable synth - 8-voice poly, sub, noise, multimode filter, four envelopes with two routable. Serum/Vital/Ableton wavetables via Move Manager.",
   "author": "athousanddetails; after Wavetable by Roland Rabien (FigBug)",
   "component_type": "sound_generator",
   "github_repo": "athousanddetails/schwung-tablor",

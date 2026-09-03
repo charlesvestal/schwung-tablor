@@ -297,7 +297,7 @@
    ]
   },
   {
-   "name": "Env",
+   "name": "Env 1",
    "rows": [
     [
      {
@@ -368,7 +368,78 @@
    ]
   },
   {
-   "name": "Env+",
+   "name": "Env 2",
+   "rows": [
+    [
+     {
+      "key": "me1_a",
+      "short": "E1ATK",
+      "full": "Env1 Attack",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me1_d",
+      "short": "E1DEC",
+      "full": "Env1 Decay",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me1_s",
+      "short": "E1SUS",
+      "full": "Env1 Sustain",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me1_r",
+      "short": "E1REL",
+      "full": "Env1 Release",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me2_a",
+      "short": "E2ATK",
+      "full": "Env2 Attack",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me2_d",
+      "short": "E2DEC",
+      "full": "Env2 Decay",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me2_s",
+      "short": "E2SUS",
+      "full": "Env2 Sustain",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me2_r",
+      "short": "E2REL",
+      "full": "Env2 Release",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     }
+    ]
+   ]
+  },
+  {
+   "name": "Env Mod",
    "rows": [
     [
      {
@@ -395,10 +466,74 @@
       "min": 0,
       "max": 127
      },
-     null,
-     null,
-     null,
-     null,
+     {
+      "key": "me1_dst",
+      "short": "E1DST",
+      "full": "Env1 Dest",
+      "type": "enum",
+      "options": [
+       "None",
+       "WT1 Pos",
+       "WT2 Pos",
+       "WT1 Level",
+       "WT2 Level",
+       "WT1 Tune",
+       "WT2 Tune",
+       "WT1 Bend",
+       "WT2 Bend",
+       "WT1 Formant",
+       "WT2 Formant",
+       "WT1 Pan",
+       "WT2 Pan",
+       "Filter Freq",
+       "Filter Res",
+       "Sub Level",
+       "Noise Level",
+       "Amp"
+      ]
+     },
+     {
+      "key": "me1_amt",
+      "short": "E1AMT",
+      "full": "Env1 Amount",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
+     {
+      "key": "me2_dst",
+      "short": "E2DST",
+      "full": "Env2 Dest",
+      "type": "enum",
+      "options": [
+       "None",
+       "WT1 Pos",
+       "WT2 Pos",
+       "WT1 Level",
+       "WT2 Level",
+       "WT1 Tune",
+       "WT2 Tune",
+       "WT1 Bend",
+       "WT2 Bend",
+       "WT1 Formant",
+       "WT2 Formant",
+       "WT1 Pan",
+       "WT2 Pan",
+       "Filter Freq",
+       "Filter Res",
+       "Sub Level",
+       "Noise Level",
+       "Amp"
+      ]
+     },
+     {
+      "key": "me2_amt",
+      "short": "E2AMT",
+      "full": "Env2 Amount",
+      "type": "int",
+      "min": 0,
+      "max": 127
+     },
      null
     ]
    ]

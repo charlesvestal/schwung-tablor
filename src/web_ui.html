@@ -557,6 +557,21 @@ function build() {
   var ar = el("div", "col", ab); ar.style.flex = "1"; ar.style.minWidth = "0";
   addCanvas(ar, drawAdsr("vca_a", "vca_d", "vca_s", "vca_r"), 104);
 
+  /* the two spare envelopes, each with where it points and how far */
+  [1, 2].forEach(function (n) {
+    var mb = panel("s4", "Env " + n);
+    var ml = el("div", "col", mb);
+    var mk = el("div", "knobs", ml);
+    controls([["me" + n + "_a", "A"], ["me" + n + "_d", "D"],
+              ["me" + n + "_s", "S"], ["me" + n + "_r", "R"]], mk);
+    var mr = el("div", "knobs", ml);
+    control("me" + n + "_dst", "To", mr);
+    control("me" + n + "_amt", "Amt", mr);
+    var mc = el("div", "col", mb); mc.style.flex = "1"; mc.style.minWidth = "0";
+    addCanvas(mc, drawAdsr("me" + n + "_a", "me" + n + "_d",
+                           "me" + n + "_s", "me" + n + "_r"), 104);
+  });
+
   var gb = panel("s4", "Global");
   var gk = el("div", "knobs", el("div", "col", gb));
   control("voice_mode", "Mode", gk);

@@ -9,7 +9,7 @@ else stays out of the way.
 
 ![Main page: both wavetables on knobs 1-2, position, level and tune](docs/img/move-main.png)
 
-7 pages, 47 controls, no menus inside menus. The graphics are Schwung's own
+8 pages, 59 controls, no menus inside menus. The graphics are Schwung's own
 — declared, not drawn by us — so the filter curve and both envelopes are the
 real values:
 
@@ -25,11 +25,15 @@ real values:
   (white / pink)
 - **Multimode filter** — LP / HP / BP / Notch, 12 or 24 dB/oct, with its own
   ADSR and key/velocity tracking
-- **Two envelopes** (amp + filter) with key and velocity tracking. For
-  movement, point one of Schwung's own slot LFOs at any Tablor knob — that
-  is what the host already does well, and it saves four pages of surface
+- **Four envelopes**: amp and filter, plus **two spare ones you can point at
+  anything** — wavetable position, level, tune, bend, formant, pan, filter
+  cutoff or resonance, sub, noise, amp — with a bipolar amount each. A
+  decaying envelope on WT Position is what makes a wavetable sound struck
+  rather than held; an LFO cannot do that shape, because it repeats
+- For repeating movement, point one of Schwung's own slot LFOs at any Tablor
+  knob from the slot settings
 - **8 voices** polyphonic, or mono with glide/legato
-- **8 factory sounds**, seeded into Schwung's own preset store on first run.
+- **9 factory sounds**, seeded into Schwung's own preset store on first run.
   Presets, modulation and knob mapping are all the host's: Shift+click the
   synth for **[User Presets]**, and point a slot LFO or a mapped knob at any
   Tablor parameter from the slot settings

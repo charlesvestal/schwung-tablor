@@ -32,6 +32,19 @@ inline float velocityToGain(float velocity, float sensitivity)
 inline constexpr int kBlock = 128;
 
 /* Everything a voice needs from the engine each block. */
+/* Where a spare envelope can be pointed. The ORDER is the option order of
+ * meN_dst in gen_params.py -- the DSP receives the selection as an index, so
+ * the two lists are one contract and must move together. */
+enum ModDst {
+    MD_NONE = 0,
+    MD_WT1_POS, MD_WT2_POS, MD_WT1_LEVEL, MD_WT2_LEVEL, MD_WT1_TUNE, MD_WT2_TUNE,
+    MD_WT1_BEND, MD_WT2_BEND, MD_WT1_FORMANT, MD_WT2_FORMANT, MD_WT1_PAN, MD_WT2_PAN,
+    MD_FLT_FREQ, MD_FLT_RES, MD_SUB_LEVEL, MD_NOISE_LEVEL, MD_AMP,
+    MD_COUNT
+};
+
+inline constexpr int kModEnvs = 2;
+
 struct VoiceContext {
     const float *pots = nullptr;            /* TB_PARAM_COUNT raw values   */
     const Wavetable *table1 = nullptr;
@@ -55,6 +68,7 @@ public:
         filter.setSampleRate(sr);
         filterADSR.setSampleRate(sr);
         adsr.setSampleRate(sr);
+        for (auto &e : modEnv) e.setSampleRate(sr);
         noteSmoother.setSampleRate(sr);
     }
 
@@ -90,6 +104,7 @@ public:
 
         filter.reset();
         filterADSR.reset();
+        for (auto &e : modEnv) e.reset();
 
         updateParams(c, 0);
 
@@ -106,6 +121,7 @@ public:
         noise.noteOn(0.0f);
 
         filterADSR.noteOn();
+        for (auto &e : modEnv) e.noteOn();
 
         adsr.reset();
         adsr.noteOn();
@@ -126,6 +142,7 @@ public:
         bool legato = P[TB_P_LEGATO] > 0.5f;
         if (!legato) {              /* env retrig switches cut: always retrig */
             filterADSR.noteOn();
+        for (auto &e : modEnv) e.noteOn();
             adsr.noteOn();
         }
     }
@@ -134,12 +151,18 @@ public:
     {
         adsr.noteOff();
         filterADSR.noteOff();
+        for (auto &e : modEnv) e.noteOff();
         if (!allowTail) {
             active = false;
         }
     }
 
-    void kill() { fastKill = true; adsr.noteOff(); filterADSR.noteOff(); }
+    void kill()
+    {
+        fastKill = true;
+        adsr.noteOff(); filterADSR.noteOff();
+        for (auto &e : modEnv) e.noteOff();
+    }
 
     void render(const VoiceContext &c, float *outL, float *outR, int n)
     {
@@ -175,7 +198,7 @@ public:
             noise.processAdding(60.0f, noiseParams, preL, preR, n);
 
         /* velocity */
-        float vgain = velocityToGain(velocity, ampVelTrack);
+        float vgain = velocityToGain(velocity, ampVelTrack) * ampModGain;
         for (int i = 0; i < n; i++) {
             preL[i] *= vgain;  preR[i] *= vgain;
             postL[i] *= vgain; postR[i] *= vgain;
@@ -239,6 +262,30 @@ private:
         adsr.setSustainLevel(pot01(P[TB_P_VCA_S]));
         adsr.setRelease(fastKill ? 0.01f : potEnvTime(P[TB_P_VCA_R]));
 
+        /* ---- the two spare envelopes, and where they point ----
+         * Each contributes env * amount to ONE destination. Amount is bipolar
+         * so a sweep can fall as well as rise, which is the shape that makes a
+         * wavetable read as a struck instrument. */
+        for (int i = 0; i < MD_COUNT; i++) modOff[i] = 0.0f;
+        {
+            static const struct { int a, d, s, r, dst, amt; } k[kModEnvs] = {
+                { TB_P_ME1_A, TB_P_ME1_D, TB_P_ME1_S, TB_P_ME1_R,
+                  TB_P_ME1_DST, TB_P_ME1_AMT },
+                { TB_P_ME2_A, TB_P_ME2_D, TB_P_ME2_S, TB_P_ME2_R,
+                  TB_P_ME2_DST, TB_P_ME2_AMT },
+            };
+            for (int i = 0; i < kModEnvs; i++) {
+                modEnv[i].setAttack(potAttackTime(P[k[i].a]));
+                modEnv[i].setDecay(potEnvTime(P[k[i].d]));
+                modEnv[i].setSustainLevel(pot01(P[k[i].s]));
+                modEnv[i].setRelease(potEnvTime(P[k[i].r]));
+                if (blockSize > 0) modEnv[i].process(blockSize);
+                const int dst = (int) P[k[i].dst];
+                if (dst > MD_NONE && dst < MD_COUNT)
+                    modOff[dst] += modEnv[i].getOutput() * potBipolar(P[k[i].amt]);
+            }
+        }
+
         /* ---- oscillators ---- */
         float baseNote = noteSmoother.getCurrentValue() * 127.0f;
         if (glissando) baseNote = (float) (int) (baseNote + 0.5f);
@@ -257,24 +304,32 @@ private:
             const int kForm   = o == 0 ? TB_P_WT1_FORMANT : TB_P_WT2_FORMANT;
             (void) kTable;
 
+            const int dPos  = o == 0 ? MD_WT1_POS : MD_WT2_POS;
+            const int dLvl  = o == 0 ? MD_WT1_LEVEL : MD_WT2_LEVEL;
+            const int dTun  = o == 0 ? MD_WT1_TUNE : MD_WT2_TUNE;
+            const int dBnd  = o == 0 ? MD_WT1_BEND : MD_WT2_BEND;
+            const int dFrm  = o == 0 ? MD_WT1_FORMANT : MD_WT2_FORMANT;
+            const int dPan  = o == 0 ? MD_WT1_PAN : MD_WT2_PAN;
+
             VoicedWTParams &vp = o == 0 ? vp1 : vp2;
 
-            oscNote[o] = baseNote + P[kTune];
+            /* tune modulation reads as an octave at full amount */
+            oscNote[o] = baseNote + P[kTune] + modOff[dTun] * 12.0f;
 
             vp.voices   = std::clamp((int) P[kUni], 1, 4);
-            vp.position = std::clamp(pot01(P[kPos]), 0.0f, 1.0f);
-            vp.gain     = std::clamp(potSquared(P[kLevel]), 0.0f, 1.0f);
-            vp.pan      = std::clamp(potBipolar(P[kPan]), -1.0f, 1.0f);
+            vp.position = std::clamp(pot01(P[kPos]) + modOff[dPos], 0.0f, 1.0f);
+            vp.gain     = std::clamp(potSquared(P[kLevel]) + modOff[dLvl], 0.0f, 1.0f);
+            vp.pan      = std::clamp(potBipolar(P[kPan]) + modOff[dPan], -1.0f, 1.0f);
             vp.detune   = potDetune(P[kDet]);
             vp.spread   = pot01(P[kSpread]);
-            vp.bend     = std::clamp(potBipolar(P[kBend]), -1.0f, 1.0f);
-            vp.formant  = std::clamp(potBipolar(P[kForm]), -1.0f, 1.0f);
+            vp.bend     = std::clamp(potBipolar(P[kBend]) + modOff[dBnd], -1.0f, 1.0f);
+            vp.formant  = std::clamp(potBipolar(P[kForm]) + modOff[dFrm], -1.0f, 1.0f);
             oscGain[o] = vp.gain;
         }
 
         /* ---- sub + noise ---- */
         subNote = baseNote + P[TB_P_SUB_TUNE];
-        float subLvl = std::clamp(potSquared(P[TB_P_SUB_LEVEL]),
+        float subLvl = std::clamp(potSquared(P[TB_P_SUB_LEVEL]) + modOff[MD_SUB_LEVEL],
                                   0.0f, 1.0f);
         float subPan = 0.0f;                 /* pan control cut: centered */
         switch ((int) P[TB_P_SUB_WAVE]) {
@@ -288,7 +343,7 @@ private:
         subParams.leftGain  = subLvl * (1.0f - subPan);
         subParams.rightGain = subLvl * (1.0f + subPan);
 
-        float nzLvl = std::clamp(potSquared(P[TB_P_NOISE_LEVEL]),
+        float nzLvl = std::clamp(potSquared(P[TB_P_NOISE_LEVEL]) + modOff[MD_NOISE_LEVEL],
                                  0.0f, 1.0f);
         float nzPan = 0.0f;                  /* pan control cut: centered */
         noiseParams.wave = (int) P[TB_P_NOISE_TYPE] == 0 ? Wave::whiteNoise : Wave::pinkNoise;
@@ -297,6 +352,7 @@ private:
 
         /* ---- amp ---- */
         ampVelTrack = pot01(P[TB_P_VCA_VEL]);
+        ampModGain = std::clamp(1.0f + modOff[MD_AMP], 0.0f, 2.0f);
 
         /* ---- filter (the original's law, verbatim) ---- */
         {
@@ -308,12 +364,13 @@ private:
             float n = potFilterNote(P[TB_P_FLT_FREQ]);
             n += ((float) midiNote - 60.0f) * pot01(P[TB_P_FLT_KEY]);
             n += env * sens * potBipolar(P[TB_P_FLT_ENV]) * filterWidth;
+            n += modOff[MD_FLT_FREQ] * filterWidth;
 
             float f = midiNoteToHz(n);
             float maxFreq = std::min(20000.0f, (float) (sampleRate / 2.0));
             f = std::clamp(f, 4.0f, maxFreq);
 
-            float res = std::clamp(pot01(P[TB_P_FLT_RES]),
+            float res = std::clamp(pot01(P[TB_P_FLT_RES]) + modOff[MD_FLT_RES],
                                    0.0f, 1.0f);
             float q = kFilterQ / (1.0f - res * 0.99f);
 
@@ -333,13 +390,15 @@ private:
     StereoOscillator::Params subParams, noiseParams;
     Filter filter;
     AnalogADSR filterADSR, adsr;
+    AnalogADSR modEnv[kModEnvs];        /* the two spare, routable envelopes */
+    float modOff[MD_COUNT] = {};        /* their summed offset per destination */
     ValueSmoother<float> noteSmoother;
     const Wavetable *lastTable1 = nullptr, *lastTable2 = nullptr;
 
     double sampleRate = 44100.0;
     float oscNote[2] = { 60.0f, 60.0f }, oscGain[2] = {};
     float subNote = 48.0f;
-    float velocity = 0.0f, ampVelTrack = 1.0f;
+    float velocity = 0.0f, ampVelTrack = 1.0f, ampModGain = 1.0f;
     int midiNote = -1;
     uint32_t serial = 0;
     bool active = false, fastKill = false, glissando = false, portamento = false;
