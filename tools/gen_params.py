@@ -14,7 +14,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.3.2"
+VERSION = "1.3.3"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
@@ -142,14 +142,19 @@ MOD_DST = ["None",
 
 def modenv(n):
     return dict(
-        a   = pot(f"me{n}_a", f"E{n}ATK", f"Env{n} Attack", 0),
-        d   = pot(f"me{n}_d", f"E{n}DEC", f"Env{n} Decay", 64),
-        s   = pot(f"me{n}_s", f"E{n}SUS", f"Env{n} Sustain", 0),
-        r   = pot(f"me{n}_r", f"E{n}REL", f"Env{n} Release", 64),
+        # The device draws the FULL name, abbreviated to fit -- so the full
+        # name is what has to carry the envelope number. "Env1 Dest" and
+        # "Env2 Dest" both abbreviated to "ENDEST": two cells, one label, and
+        # no way to tell which envelope you were pointing. Short, already-
+        # abbreviated names survive the squeeze intact.
+        a   = pot(f"me{n}_a", f"E{n}ATK", f"EG{n} A", 0),
+        d   = pot(f"me{n}_d", f"E{n}DEC", f"EG{n} D", 64),
+        s   = pot(f"me{n}_s", f"E{n}SUS", f"EG{n} S", 0),
+        r   = pot(f"me{n}_r", f"E{n}REL", f"EG{n} R", 64),
         # Amount is BIPOLAR (64 = off): the useful direction is often downward
         # -- position falling back as the note decays -- so it has to invert.
-        dst = enum(f"me{n}_dst", f"E{n}DST", f"Env{n} Dest", MOD_DST, 0),
-        amt = pot(f"me{n}_amt", f"E{n}AMT", f"Env{n} Amount", 64),
+        dst = enum(f"me{n}_dst", f"E{n}DST", f"EG{n} Dst", MOD_DST, 0),
+        amt = pot(f"me{n}_amt", f"E{n}AMT", f"EG{n} Amt", 64),
     )
 ME1, ME2 = modenv(1), modenv(2)
 
@@ -191,7 +196,7 @@ BANKS = [
     # Stock pages render 2 rows of 4; a viz group must sit contiguously in
     # one row. freq/res/TYPE first so the filter-curve roles touch.
     ("Filter", False, [
-        row(FILTER["freq"], FILTER["res"], FILTER["type"], FILTER["env"],
+        row(FILTER["freq"], FILTER["res"], FILTER["type"],
             SUB["level"], SUB["wave"], NOISE["level"], NOISE["type"]),
     ]),
     # Both envelopes on ONE page: an envelope graphic spans one 4-cell line
@@ -205,8 +210,17 @@ BANKS = [
         # both draw as a curve, the way the amp and filter pair do above
         row(ME1["a"], ME1["d"], ME1["s"], ME1["r"],
             ME2["a"], ME2["d"], ME2["s"], ME2["r"]),
-        # tracking, then where each spare envelope goes and how far
-        row(VCA["vel"], FILTER["key"], FILTER["vel"],
+        # Tracking on the top row; the routing on the bottom one, all four
+        # cells together, so each destination sits next to its own amount
+        # instead of the pair being split across the fold.
+        # Top row is the four envelope-DEPTH controls, filter EG amount
+        # included -- it is how far the filter envelope goes, which is the
+        # same question the amounts below answer for EG1 and EG2, and it was
+        # sitting on the filter page next to cutoff where it is not.
+        # Bottom row is the routing, all four cells together, so each
+        # destination sits beside its own amount instead of the pair being
+        # split across the fold.
+        row(VCA["vel"], FILTER["key"], FILTER["vel"], FILTER["env"],
             ME1["dst"], ME1["amt"], ME2["dst"], ME2["amt"]),
     ]),
     ("Global", True, [

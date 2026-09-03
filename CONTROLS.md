@@ -42,18 +42,17 @@ Mark anything to cut and the generator removes it everywhere at once
 | 4 | **WT2 Formant** | `wt2_formant` | 0..127 (pot) | 64 |
 | 5 | **Sub Tune** | `sub_tune` | -24..24 (int) | -12 |
 
-## FILTER  (8 controls)
+## FILTER  (7 controls)
 
 | # | Control | Key | Values | Default |
 |---|---------|-----|--------|---------|
 | 1 | **Filter Freq** | `flt_freq` | 0..127 (pot) | 127 |
 | 2 | **Filter Res** | `flt_res` | 0..127 (pot) | 0 |
 | 3 | **Filter Type** | `flt_type` | LP 12 / LP 24 / HP 12 / HP 24 / BP 12 / BP 24 / Notch 12 / Notch 24 | LP 24 |
-| 4 | **Filter EG Amt** | `flt_env` | 0..127 (pot) | 64 |
-| 5 | **Sub Level** | `sub_level` | 0..127 (pot) | 0 |
-| 6 | **Sub Wave** | `sub_wave` | Sine / Triangle / Saw / Square / Pulse / Pulse Tr | Sine |
-| 7 | **Noise Level** | `noise_level` | 0..127 (pot) | 0 |
-| 8 | **Noise Type** | `noise_type` | White / Pink | White |
+| 4 | **Sub Level** | `sub_level` | 0..127 (pot) | 0 |
+| 5 | **Sub Wave** | `sub_wave` | Sine / Triangle / Saw / Square / Pulse / Pulse Tr | Sine |
+| 6 | **Noise Level** | `noise_level` | 0..127 (pot) | 0 |
+| 7 | **Noise Type** | `noise_type` | White / Pink | White |
 
 ## ENV 1  (8 controls)
 
@@ -72,26 +71,27 @@ Mark anything to cut and the generator removes it everywhere at once
 
 | # | Control | Key | Values | Default |
 |---|---------|-----|--------|---------|
-| 1 | **Env1 Attack** | `me1_a` | 0..127 (pot) | 0 |
-| 2 | **Env1 Decay** | `me1_d` | 0..127 (pot) | 64 |
-| 3 | **Env1 Sustain** | `me1_s` | 0..127 (pot) | 0 |
-| 4 | **Env1 Release** | `me1_r` | 0..127 (pot) | 64 |
-| 5 | **Env2 Attack** | `me2_a` | 0..127 (pot) | 0 |
-| 6 | **Env2 Decay** | `me2_d` | 0..127 (pot) | 64 |
-| 7 | **Env2 Sustain** | `me2_s` | 0..127 (pot) | 0 |
-| 8 | **Env2 Release** | `me2_r` | 0..127 (pot) | 64 |
+| 1 | **EG1 A** | `me1_a` | 0..127 (pot) | 0 |
+| 2 | **EG1 D** | `me1_d` | 0..127 (pot) | 64 |
+| 3 | **EG1 S** | `me1_s` | 0..127 (pot) | 0 |
+| 4 | **EG1 R** | `me1_r` | 0..127 (pot) | 64 |
+| 5 | **EG2 A** | `me2_a` | 0..127 (pot) | 0 |
+| 6 | **EG2 D** | `me2_d` | 0..127 (pot) | 64 |
+| 7 | **EG2 S** | `me2_s` | 0..127 (pot) | 0 |
+| 8 | **EG2 R** | `me2_r` | 0..127 (pot) | 64 |
 
-## ENV MOD  (7 controls)
+## ENV MOD  (8 controls)
 
 | # | Control | Key | Values | Default |
 |---|---------|-----|--------|---------|
 | 1 | **VCA Velocity** | `vca_vel` | 0..127 (pot) | 100 |
 | 2 | **Key Track** | `flt_key` | 0..127 (pot) | 0 |
 | 3 | **Vel Track** | `flt_vel` | 0..127 (pot) | 0 |
-| 4 | **Env1 Dest** | `me1_dst` | 18 options | None |
-| 5 | **Env1 Amount** | `me1_amt` | 0..127 (pot) | 64 |
-| 6 | **Env2 Dest** | `me2_dst` | 18 options | None |
-| 7 | **Env2 Amount** | `me2_amt` | 0..127 (pot) | 64 |
+| 4 | **Filter EG Amt** | `flt_env` | 0..127 (pot) | 64 |
+| 5 | **EG1 Dst** | `me1_dst` | 18 options | None |
+| 6 | **EG1 Amt** | `me1_amt` | 0..127 (pot) | 64 |
+| 7 | **EG2 Dst** | `me2_dst` | 18 options | None |
+| 8 | **EG2 Amt** | `me2_amt` | 0..127 (pot) | 64 |
 
 ## GLOBAL  (7 controls)
 
