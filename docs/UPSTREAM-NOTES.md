@@ -67,10 +67,9 @@ shape changed", and the one graphic that should carry that says nothing.
 
 **Suggestions**
 - Short term: a doc line saying the shape is decorative.
-- Better: have the host read peaks from the selected file (Movy already does
+- Better: have the host read peaks from the selected file (other tools do
   this — `MANUAL.md` "Sample waveform": *"the file is read a little at a time
   in the background… WAV (8/16/24-bit and float) and AIFF are both read"*).
-  Movy's implementation is the reference, and its incremental read is the
   right shape for the RT constraints.
 - If a module could supply the peaks itself (a small `viz_data`-style key
   read off-thread), it would also cover formats the host cannot decode —

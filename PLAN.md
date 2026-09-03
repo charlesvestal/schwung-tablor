@@ -10,9 +10,8 @@ Analysis and build plan. **No code written yet** — this document is the study.
 |---|---|---|
 | FigBug/Wavetable (the synth to adapt) | `reference/wavetable` | BSD-3 |
 | gin (its DSP library, a submodule) | `reference/wavetable/modules/gin` | BSD-3 |
-| Movy (the knob UI + sequencer) | `reference/movy` | MIT |
 | Schwung host + module API | `~/Developer/schwung-overtake` | — |
-| 9W9 / ER-99 (a working Movy-driven module) | `~/Developer/909-schwung/schwung-er99` | — |
+| 9W9 / ER-99 (a working Schwung module) | `~/Developer/909-schwung/schwung-er99` | — |
 | Move itself | measured live over `ssh move.local` | — |
 
 ---
@@ -99,41 +98,14 @@ buffer.**
 
 ---
 
-## 3. What Movy gives us — more than expected
+## 3. The UI: Schwung's stock knob pages
 
-Movy is a Schwung **tool** module that renders any module's knob pages. A module
-gets a curated layout by dropping `movy_config.json` in its own module
-directory; Movy reads it before its own bundled templates. 9W9 already does
-exactly this, so the pattern is proven on your own hardware.
+Tablor declares `ui_hierarchy` and `chain_params`, and Schwung's own param
+pages render them -- knob grids, graphics, the file browser, the keyboard.
 
-```
-banks[]  → a section   (Shift + jog jumps between sections)
-  rows[] → a page of 8 (jog steps pages)
-```
-
-That **is** the "multipages flipped with the jog, top encoders change function"
-you described. It already exists; we don't build it.
-
-The part I didn't expect: Movy has render hints that turn rows of dials into
-pictures, and they line up with your pages almost suspiciously well:
-
-| Hint | Draws |
-|---|---|
-| `filter: cutoff\|resonance\|mode\|slope` | live filter-response curve across two cells |
-| `env: a\|d\|s\|r` | one envelope graphic instead of four knobs |
-| `lfo: shape\|rate\|depth\|phase\|…` | live LFO waveform preview |
-| `type: 'file'` + `fileRoot`/`fileFilter` | file browser with the waveform drawn |
-| enum params | full-screen scrollable list overlay on touch |
-
-So page 2 draws a real filter curve, page 3 a real envelope, page 4 a real LFO
-shape — for free, from config. Levels are auto-detected and drawn as faders.
-
-**Caveat found in the source:** avoid `render: 'preset'` / `capturesModuleState`
-on anything turned often — each gesture costs a blocking chain read (~3–5 ms)
-and snapshots the whole module into the undo stack. This rules it out for
-wavetable selection (§5).
-
----
+An earlier draft of this plan targeted a third-party page renderer as well.
+That is gone: the stock pages do the job, and there is no second layout to
+keep in step with the first.
 
 ## 4. Decisions
 
@@ -182,7 +154,7 @@ is the gating risk on this box, and that measuring first saves weeks. A headless
 Following ER-99's `gen_params.py` — every continuous control is a 0..127 pot and
 the DSP maps it to a musical range internally, so the screen never shows
 milliseconds or hertz. A single Python generator emits `chain_params`,
-`movy_config.json` and the C header from one source of truth.
+the page layout and the C header from one source of truth.
 
 ---
 
@@ -230,7 +202,7 @@ This is the headline feature, so it gets the design attention:
 - Expose `wt1_table` / `wt2_table` as **enum params** whose `options` are those
   names, served through `get_param("chain_params")` (which is exactly why
   `chain_params` must be dynamic and not stuck in the 8 KB `module.json`).
-- Turning the encoder steps tables; **touching it opens Movy's full-screen
+- Turning the encoder steps tables; **touching it opens the full-screen
   scrollable list**. That is one gesture to browse hundreds of tables.
 - Add `knobAcceleration: 'wide'` so a slow turn is single-step and a fast sweep
   travels.
@@ -327,7 +299,7 @@ behind it rather than crowding it.
 - Row 1 = LFO1, Row 2 = LFO2, Row 3 = LFO3, each: `Shape` · `Rate` · `Sync` · `Beat` · `Depth` · `Phase` · `Offset` · `Retrig`
 
 **Bank 5 — MOD** — 8 slots, 2 per row, 4 knobs each: `Src` · `Dst` · `Amount` · `On`.
-Src and Dst are enums, so touching either opens Movy's scrollable list.
+Src and Dst are enums, so touching either opens the scrollable list.
 - Sources: LFO 1–3, Filter EG, VCA EG, Velocity, Note, Modwheel, Aftertouch, Pitchbend, Random
 - Destinations: ~20 — both WT positions/levels/tunes/bend/formant, filter freq/res, sub & noise level, pan, amp, LFO rates
 
@@ -346,9 +318,6 @@ Src and Dst are enums, so touching either opens Movy's scrollable list.
    config. No engine surgery. Default unison 1 either way.
 2. **Wavetable switch glitching.** Mitigation: background loader + atomic swap,
    designed in from the start rather than retrofitted (§5.4).
-3. **Movy render hints not firing as documented.** They're inferred from names
-   and hints; if a curve or envelope doesn't draw, the page still works but looks
-   ordinary. Cheap to iterate — it's a JSON file.
 4. **Ableton format claim unverified** (§5). Low stakes now that everything runs
    through one WAV path, but I'd still like one real file to confirm.
 
@@ -368,7 +337,6 @@ top of them.
 schwung-tablor/
 ├── src/
 │   ├── module.json              # < 8 KB — generated
-│   ├── movy_config.json         # the 6 banks — generated
 │   ├── dsp/
 │   │   ├── tablor_plugin.cpp    # plugin_api_v2 entry point
 │   │   ├── engine.{h,cpp}       # voice allocator, poly/mono, glide
@@ -395,7 +363,7 @@ schwung-tablor/
 
 `gen_params.py` is the single source of truth (the ER-99 pattern): it emits
 `params.h`, `module.json`, the `chain_params` JSON string, and
-`movy_config.json`. A parameter is added in exactly one place.
+the page layout. A parameter is added in exactly one place.
 
 ### The phases
 
@@ -405,7 +373,6 @@ glibc 2.35), `-march=armv8-a -mtune=cortex-a72 -static-libstdc++ -static-libgcc`
 `build.sh` rsyncs to the VPS and builds in Docker; `deploy.sh` relays the
 artifact to the Move and **`scp` beside, then `mv`** — never over a live
 `dsp.so`. Ship a `dsp.so` that implements `plugin_api_v2` and renders silence.
-Also install Movy on the device (it isn't currently there).
 → **Gate:** module appears in Schwung, loads, renders silence, doesn't crash
 MoveOriginal. The whole edit→device loop works and is timed.
 
@@ -446,14 +413,6 @@ resample to 2048/44100; decimated mip build; 24 MB ceiling; shared table cache;
 background loader thread with double-buffer and atomic swap.
 → **Gate:** switching tables *while a note is held* is silent; switch latency and
 RSS measured on-device against phase 1's predictions.
-
-**Phase 5 — Movy integration.**
-Dynamic `chain_params` from `get_param()` (enum options = the scanned table
-names — the reason it can't live in the 8 KB `module.json`), plus
-`movy_config.json` with all six banks and the render hints.
-→ **Gate:** all six banks render; the filter curve, both envelope graphics and
-the LFO previews actually draw; wavetable selection via the enum overlay is fast
-in the hand.
 
 **Phase 6 — State, presets, defaults.**
 `get_param("state")` / `set_param("synth:state")` round-trip, **version-tagged**

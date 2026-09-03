@@ -30,7 +30,6 @@ rm -rf dist/tablor
 mkdir -p dist/tablor/wavetables dist/tablor/presets
 cp build/dsp.so           dist/tablor/
 cp src/module.json        dist/tablor/
-cp src/movy_config.json   dist/tablor/
 cp src/ui_pages.json      dist/tablor/
 cp src/help.json          dist/tablor/
 cp src/web_ui.html        dist/tablor/

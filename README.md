@@ -104,7 +104,7 @@ Cross-compiles for the Move (aarch64, glibc 2.35) in Docker:
 is specific to the author's setup. The build runs the native DSP test suite
 and a config contract check; a red test fails the build. `tools/gen_params.py`
 is the single source of truth for the whole parameter surface — module.json,
-Movy config, the on-device editor and the web panel are all generated from it.
+the device pages and the web panel are all generated from it.
 
 ## Credits & licenses
 
@@ -125,7 +125,6 @@ the original's behavior with numeric golden tests.
 | Adventure Kid wavetables | Kristoffer Ekstrand | Public domain |
 | Neu KatalYst wavetables | Neu KatalYst | Free to use |
 | Host framework | [Schwung](https://github.com/charlesvestal/schwung) by Charles Vestal | — |
-| Knob-page UI concepts | [Movy](https://github.com/DimaDake/schwung-movy) by megadake | MIT |
 | Schwung port | [athousanddetails](https://github.com/athousanddetails) | BSD-3-Clause |
 
 This module is **not** affiliated with Ableton. "Move" is a trademark of

@@ -4,7 +4,7 @@
 #ifndef TABLOR_PARAMS_H
 #define TABLOR_PARAMS_H
 
-#define TB_VERSION "1.3.0"
+#define TB_VERSION "1.3.1"
 #define TB_PARAM_COUNT 59
 
 typedef enum { TB_INT = 0, TB_ENUM = 1, TB_PATH = 2 } tb_param_type_t;

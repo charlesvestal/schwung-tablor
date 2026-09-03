@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""Contract check: the generated movy_config.json + chain_params template
-against Movy's ModuleConfig shape (reference/movy/src/types/param.ts).
+"""Contract check: the generated page layout + the chain_params template.
+
+ui_pages.json is the page layout: it is what the web panel reads, and it
+carries the same eight rows the device pages are built from.
 
 Runs in the build container after gen_params.py — a violation fails the build.
 """
@@ -13,50 +15,35 @@ def check(cond, msg):
     if not cond:
         fails.append(msg)
 
-# ---- movy_config.json shape -------------------------------------------
-cfg = json.loads((ROOT / "src/movy_config.json").read_text())
-check(cfg.get("id") == "tablor" and cfg.get("name"), "id/name present")
-banks = cfg.get("banks", [])
-check(len(banks) == 8, f"expected 8 banks, got {len(banks)}")
-for b in banks:
-    # Movy: a config bank is EXACTLY one page (bankGroups is per-bank but
-    # indexed per-page; multi-row banks shift every later page label)
-    check(len(b.get("rows", [])) == 1,
-          f"bank {b.get('name')}: must be single-row (Movy bank == page)")
+# ---- page layout ------------------------------------------------------
+cfg = json.loads((ROOT / "src/ui_pages.json").read_text())
+pages = cfg.get("pages", [])
+check(len(pages) == 8, f"expected 8 pages, got {len(pages)}")
 
-VALID_TYPES  = {"float", "int", "enum", "file"}
-VALID_ENV    = {"a", "d", "s", "r"}
-VALID_LFO    = {"shape", "phase", "mode", "retrig", "rate", "depth", "deform"}
-VALID_FILTER = {"cutoff", "resonance", "mode", "slope"}
+VALID_TYPES = {"float", "int", "enum", "file"}
 
 seen_keys = set()
-for b in banks:
-    check(isinstance(b.get("name"), str) and b["name"], "bank has a name")
-    for r in b.get("rows", []):
-        check(len(r) == 8, f"bank {b['name']}: row must have exactly 8 slots, got {len(r)}")
-        for s in r:
-            if s is None:
-                continue
-            k = s.get("key")
-            check(isinstance(k, str) and k, f"slot missing key in bank {b['name']}")
-            check(k not in seen_keys, f"duplicate key {k}")
-            seen_keys.add(k)
-            check(s.get("type") in VALID_TYPES, f"{k}: bad type {s.get('type')}")
-            check(isinstance(s.get("short"), str) and len(s["short"]) <= 5,
-                  f"{k}: short label must be <=5 chars ('{s.get('short')}')")
-            check(isinstance(s.get("full"), str) and s["full"], f"{k}: full label")
-            if s["type"] == "enum":
-                check(isinstance(s.get("options"), list) and s["options"],
-                      f"{k}: enum needs options")
-            elif s["type"] == "file":
-                check(isinstance(s.get("fileRoot"), str) and s["fileRoot"].startswith("/"),
-                      f"{k}: file slot needs absolute fileRoot")
-            else:
-                check("min" in s and "max" in s and s["min"] < s["max"],
-                      f"{k}: needs min < max")
-            if "env" in s:    check(s["env"] in VALID_ENV, f"{k}: env hint {s['env']}")
-            if "lfo" in s:    check(s["lfo"] in VALID_LFO, f"{k}: lfo hint {s['lfo']}")
-            if "filter" in s: check(s["filter"] in VALID_FILTER, f"{k}: filter hint {s['filter']}")
+for b in pages:
+    check(isinstance(b.get("name"), str) and b["name"], "page has a name")
+    r = b.get("slots", [])
+    check(len(r) == 8, f"page {b['name']}: row must have exactly 8 slots, got {len(r)}")
+    for s in r:
+        if s is None:
+            continue
+        k = s.get("k")
+        check(isinstance(k, str) and k, f"slot missing key on page {b['name']}")
+        check(k not in seen_keys, f"duplicate key {k}")
+        seen_keys.add(k)
+        check(s.get("t") in VALID_TYPES, f"{k}: bad type {s.get('t')}")
+        check(isinstance(s.get("n"), str) and len(s["n"]) <= 5,
+              f"{k}: short label must be <=5 chars ('{s.get('n')}')")
+        check(isinstance(s.get("full"), str) and s["full"], f"{k}: full label")
+        if s["t"] == "enum":
+            check(isinstance(s.get("options"), list) and s["options"],
+                  f"{k}: enum needs options")
+        elif s["t"] != "file":
+            check("min" in s and "max" in s and s["min"] < s["max"],
+                  f"{k}: needs min < max")
 
 # ---- chain_params: static JSON, parse + cross-check -------------------
 hdr = (ROOT / "src/dsp/params.h").read_text()
@@ -71,29 +58,27 @@ if m:
         chain = []
     chain_keys = {p["key"] for p in chain}
 
-    # every movy_config key must exist in chain_params, and vice versa
+    # every page key must exist in chain_params, and vice versa
     # preset's options are published at runtime (the live preset list), so it
     # is deliberately absent from the static contract.
     DYNAMIC_KEYS = {"preset"}
     for k in seen_keys:
         check(k in chain_keys or k in DYNAMIC_KEYS,
-              f"movy_config key {k} missing from chain_params")
-    # Strings cannot be driven by a Movy encoder, so they are contract-only:
-    # save_as is the keyboard-backed Save As cell on the device and web.
-    MOVY_EXEMPT = {"save_as", "preset_name"}
+              f"page key {k} missing from chain_params")
+    # Contract-only keys: reachable, but not as a turnable cell on a page.
+    PAGE_EXEMPT = {"save_as", "preset_name"}
     for k in chain_keys:
-        check(k in seen_keys or k in MOVY_EXEMPT,
-              f"chain_params key {k} not on any movy page")
+        check(k in seen_keys or k in PAGE_EXEMPT,
+              f"chain_params key {k} is on no page")
 
-    # types agree (movy 'file' pairs with schwung 'filepath')
+    # types agree (our 'file' pairs with schwung 'filepath')
     chain_types = {p["key"]: p["type"] for p in chain}
     pair = {"file": "filepath", "int": "int", "float": "float", "enum": "enum"}
-    for b in banks:
-        for r in b["rows"]:
-            for s in r:
-                if s and s["key"] in chain_types:
-                    check(pair.get(s["type"]) == chain_types[s["key"]],
-                          f"{s['key']}: movy type {s['type']} != chain {chain_types[s['key']]}")
+    for b in pages:
+        for s in b["slots"]:
+            if s and s["k"] in chain_types:
+                check(pair.get(s["t"]) == chain_types[s["k"]],
+                      f"{s['k']}: page type {s['t']} != chain {chain_types[s['k']]}")
     # the wavetable cells are the stock file browser: bracketed, opened with
     # touch-pot + jog-click, with live preview while browsing
     for p in chain:
@@ -129,7 +114,7 @@ if pages_file.exists():
                       f"{s['k']}: int slot needs min/max")
             page_keys.add(s["k"])
     for k in seen_keys:
-        check(k in page_keys, f"movy key {k} missing from ui_pages")
+        check(k in page_keys, f"page key {k} missing from ui_pages")
     for k in page_keys:
         check(k in seen_keys, f"ui_pages key {k} not a real param")
 
@@ -179,7 +164,7 @@ if m3:
         if k not in ("preset",):            # preset is the browser's list_param
             check(k in hkeys or k in DEVICE_HIDDEN
                   or k in ("save_preset", "preset_name"),
-                  f"movy key {k} missing from hierarchy")
+                  f"page key {k} missing from hierarchy")
 
     # viz contiguity: a group's members must sit adjacent within one 4-cell
     # row of some level's knobs (the 0.12 hard gate, checked at build time)
@@ -210,5 +195,5 @@ if fails:
     for f in fails:
         print("  -", f)
     sys.exit(1)
-print(f"config contract OK: {len(banks)} banks, {len(seen_keys)} keys, "
+print(f"config contract OK: {len(pages)} pages, {len(seen_keys)} keys, "
       f"chain fmt splices to valid JSON, module.json {sz} B")

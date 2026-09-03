@@ -3,7 +3,6 @@
 
 Emits, from one table:
   src/module.json        (< 8 KB — Schwung's loader cap; holds NO chain_params)
-  src/movy_config.json   (the six Movy banks with render hints)
   src/dsp/params.h       (param table + chain_params JSON served via get_param)
 
 Every continuous control is a 0..127 pot (the ER-99 doctrine): the DSP maps
@@ -15,7 +14,7 @@ Run: python3 tools/gen_params.py     (from the repo root)
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 
 # ---------------------------------------------------------------- enums
 FILTER_TYPES = ["LP 12", "LP 24", "HP 12", "HP 24", "BP 12", "BP 24", "Notch 12", "Notch 24"]
@@ -66,10 +65,6 @@ def enum(key, short, full, options, default=0, **kw):
     d.update(kw)
     return d
 
-def hint(p, **kw):
-    """Attach movy-only render hints (env/filter/knobAcceleration…)."""
-    q = dict(p); q["_movy"] = kw; return q
-
 # ---------------------------------------------------------------- the surface
 # Trimmed 2026-08-16 per Gus: no fine, no retrig anywhere, no sub/noise pan,
 # no filter routing switches. Behaviors hardcode to the old defaults in the DSP.
@@ -96,10 +91,10 @@ def osc(n):
 O1, O2 = osc(1), osc(2)
 
 FILTER = dict(
-    freq = hint(pot("flt_freq", "FREQ", "Filter Freq", 127), filter="cutoff"),
-    res  = hint(pot("flt_res",  "RES",  "Filter Res", 0),    filter="resonance"),
+    freq = pot("flt_freq", "FREQ", "Filter Freq", 127),
+    res  = pot("flt_res",  "RES",  "Filter Res", 0),
     env  = pot("flt_env",  "FENV", "Filter EG Amt", 64),
-    type = hint(enum("flt_type", "TYPE", "Filter Type", FILTER_TYPES, 1), filter="mode"),
+    type = enum("flt_type", "TYPE", "Filter Type", FILTER_TYPES, 1),
     key  = pot("flt_key",  "KEYT", "Key Track", 0),
     vel  = pot("flt_vel",  "VELT", "Vel Track", 0),
 )
@@ -113,10 +108,6 @@ NOISE = dict(
     type  = enum("noise_type", "NTYP", "Noise Type", NOISE_TYPES, 0),
 )
 VCA = dict(
-    # NO env hints: Movy's roleOf() gives every hinted stage qualifier "" —
-    # two hinted foursomes then collapse into ONE group and the loser draws
-    # as lone ramps. Unhinted, Movy parses the LABELS ("VCA Attack" -> Amp
-    # group, "Flt Attack" -> Filter group) and stacks two named envelopes.
     # Defaults are the original's: attack 0.1 s, decay 0.1 s, sustain 80%,
     # release 0.1 s (PluginProcessor.cpp, both the amp and filter envelopes).
     # These had been ported as 0 / 100% / 5.7 ms, so a fresh patch had an
@@ -203,10 +194,10 @@ BANKS = [
         row(FILTER["freq"], FILTER["res"], FILTER["type"], FILTER["env"],
             SUB["level"], SUB["wave"], NOISE["level"], NOISE["type"]),
     ]),
-    # Both envelopes on ONE page: a Movy envelope graphic spans one 4-cell
-    # line and a page has two lines, so VCA (line 1) + Filter (line 2) draw
-    # as two stacked ADSR graphics (the manual's env_dual). Each foursome
-    # must own its own line — split across lines it degrades to lone ramps.
+    # Both envelopes on ONE page: an envelope graphic spans one 4-cell line
+    # and a page has two lines, so VCA (line 1) + Filter (line 2) draw as two
+    # stacked ADSR graphics. Each foursome must own its own line -- split
+    # across lines it degrades to lone ramps.
     ("Env", False, [
         row(VCA["a"], VCA["d"], VCA["s"], VCA["r"],
             FEG["a"], FEG["d"], FEG["s"], FEG["r"]),
@@ -244,53 +235,6 @@ PARAMS = all_params()
 PARAMS = all_params()
 
 PARAMS = all_params()
-
-# ---------------------------------------------------------------- emit: movy_config
-def movy_slot(p):
-    if p is None:
-        return None
-    s = {"key": p["key"], "short": p["short"], "full": p["full"], "type": p["type"]}
-    if p["type"] == "file":
-        s["fileRoot"] = WT_ROOT
-        s["fileFilter"] = WT_FILTER
-    elif p["type"] == "enum":
-        s["options"] = p["options"]
-    else:
-        s["min"], s["max"] = p["min"], p["max"]
-    if p.get("automatable") is False:
-        s["automatable"] = False
-    if p.get("behavior"):
-        s["behavior"] = p["behavior"]
-        if p["behavior"] == "trigger":
-            s["access"] = "write"      # 0.12+ contract; behavior stays for Movy
-    for k, v in p.get("_movy", {}).items():
-        s[k] = v
-    return s
-
-# Movy constraint (config-pages.ts: "Each config bank is exactly one page"):
-# bankGroups is one entry PER BANK but indexed PER PAGE, so a multi-row bank
-# shifts every following page label. One bank per page, named like ui_chain.
-MOVY_PAGE_NAMES = {
-    ("Osc", 0): "Osc",    ("Osc", 1): "Unison",  ("Osc", 2): "Shape",
-    ("Filter", 0): "Filter",
-    ("Env", 0): "Env 1", ("Env", 1): "Env 2", ("Env", 2): "Env Mod",
-    ("Global", 0): "Global",
-}
-
-movy_banks = []
-for name, glob, rows in BANKS:
-    for ri, r in enumerate(rows):
-        movy_banks.append({
-            "name": MOVY_PAGE_NAMES[(name, ri)],
-            **({"global": True} if glob else {}),
-            "rows": [[movy_slot(s) for s in r]],
-        })
-
-movy_config = {
-    "id": "tablor",
-    "name": "Tablor",
-    "banks": movy_banks,
-}
 
 # ---------------------------------------------------------------- emit: chain_params
 # Schwung 0.12+ parameter visualisations: DECLARED, not detected (the docs'
@@ -610,19 +554,16 @@ lines += [
 
 # ---------------------------------------------------------------- write
 out_module = ROOT / "src" / "module.json"
-out_movy   = ROOT / "src" / "movy_config.json"
 out_header = ROOT / "src" / "dsp" / "params.h"
 
 out_pages = ROOT / "src" / "ui_pages.json"
 
 out_module.write_text(json.dumps(module_json, indent=2) + "\n")
-out_movy.write_text(json.dumps(movy_config, indent=1) + "\n")
 out_header.write_text("\n".join(lines) + "\n")
 out_pages.write_text(json.dumps(ui_pages, separators=(",", ":")) + "\n")
 
 msize = out_module.stat().st_size
 print(f"params: {len(PARAMS)}")
 print(f"module.json: {msize} bytes  ({'OK' if msize < 8192 else 'OVER 8KB CAP!'})")
-print(f"movy_config.json: {out_movy.stat().st_size} bytes")
 print(f"params.h: {out_header.stat().st_size} bytes  (chain fmt {len(chain_json)} bytes)")
 assert msize < 8192, "module.json exceeds Schwung's 8 KB loader cap"
