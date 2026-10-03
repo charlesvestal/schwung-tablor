@@ -18,6 +18,7 @@
 
 #include <functional>
 
+#include <atomic>
 #include <condition_variable>
 #include <map>
 #include <mutex>
@@ -58,16 +59,29 @@ public:
         cv.notify_all();
     }
 
-    ~WtLoader()
+    /* Stop and JOIN the worker. Idempotent. destroy_instance must call this
+     * BEFORE the instance's other members are destroyed: the worker's jobs
+     * write into them (presets, sel, wt_shape are declared after the loader
+     * and so were destroyed first, while the worker could still be running).
+     * A job still running after dsp.so is unmapped crashes the host. */
+    void stop()
     {
         {
             std::lock_guard<std::mutex> lk(m);
             quit = true;
+            stopping_.store(true, std::memory_order_release);
         }
         cv.notify_all();
-        if (started)
+        if (started) {
             pthread_join(worker, nullptr);
+            started = false;
+        }
     }
+
+    /* True once stop() has begun: long jobs check it to cut the wait short. */
+    bool stopping() const { return stopping_.load(std::memory_order_acquire); }
+
+    ~WtLoader() { stop(); }
 
     /* Called on the WORKER with each table as it finishes, before the engine
      * takes ownership. The plugin uses it to build the display digest off the
@@ -290,6 +304,7 @@ private:
     bool hasPending[2] = { false, false };
     bool working = false;
     bool quit = false;
+    std::atomic<bool> stopping_ { false };
 
     std::mutex cacheM;
     std::map<std::string, std::weak_ptr<Wavetable>> cache;

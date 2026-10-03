@@ -1053,7 +1053,9 @@ static void *tb_create_instance(const char *module_dir, const char *json_default
     inst->loader.start();
     inst->loader.post([inst] {
         tb::WtScanner::seedUserFolder(inst->module_dir);   /* first-run copy */
+        if (inst->loader.stopping()) return;   /* destroy_instance waiting */
         inst->scanner.scan();                              /* opendir walk   */
+        if (inst->loader.stopping()) return;
         /* Derive the pack list and the published option lists ONCE, off the
          * single scan — so get_param never has to. */
         tb_publish_selection(inst);
@@ -1065,6 +1067,7 @@ static void *tb_create_instance(const char *module_dir, const char *json_default
          * enum with no options at all: the cell read 0 and stepping it found
          * nothing. */
         tb_publish_selection(inst);
+        if (inst->loader.stopping()) return;
         /* The digest is built from the real samples, on this thread, as each
          * table lands -- including these built-in ones. */
         inst->loader.onTable = [inst](int osc, const tb::Wavetable &wt) {
@@ -1099,7 +1102,13 @@ static void *tb_create_instance(const char *module_dir, const char *json_default
 
 static void tb_destroy_instance(void *instance)
 {
-    delete (tablor_instance *) instance;
+    auto *inst = (tablor_instance *) instance;
+    if (!inst) return;
+    /* Join the worker FIRST: member destruction runs in reverse declaration
+     * order, which would free presets/sel/wt_shape while a job still writes
+     * them. */
+    inst->loader.stop();
+    delete inst;
 }
 
 static plugin_api_v2_t g_api = {

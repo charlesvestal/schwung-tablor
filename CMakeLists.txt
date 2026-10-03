@@ -27,6 +27,12 @@ target_include_directories(tablor PRIVATE src src/dsp src/host src/ported)
 target_link_libraries(tablor PRIVATE m pthread)
 target_link_options(tablor PRIVATE ${TB_STATIC_LINK})
 set_target_properties(tablor PROPERTIES OUTPUT_NAME "dsp" PREFIX "" SUFFIX ".so")
+# glibc marks any DSO exporting an STB_GNU_UNIQUE symbol NODELETE, so dsp.so
+# would never unload: a reload keeps running the old image and its memory is
+# never freed. -fno-gnu-unique covers our own C++; --exclude-libs,ALL keeps
+# the statically linked libstdc++'s symbols (std::string::npos etc.) local.
+target_compile_options(tablor PRIVATE -fno-gnu-unique)
+target_link_options(tablor PRIVATE -Wl,--exclude-libs,ALL)
 
 # Loader test: dlopens the real dsp.so exactly like the chain host does.
 # Cross-compiled and run ON the Move — the phase 0 gate.
